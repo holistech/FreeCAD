@@ -30,6 +30,7 @@ from CAMTests.TestLinkingGenerator import TestGetLinkingMoves
 from CAMTests.TestMachine import (
     TestMachineDataclass,
     TestMachineFactory,
+    TestOutputOptions,
     TestToolhead,
     TestProcessingOptions,
 )
@@ -59,7 +60,11 @@ from CAMTests.TestPathOpUtil import (
     TestGetClearedAreasWorkplane,
     TestStripRotaryAxes,
 )
-from CAMTests.TestPostToolProcessing import TestToolLengthOffset, TestToolProcessing
+from CAMTests.TestPostToolProcessing import (
+    TestToolLengthOffset,
+    TestToolProcessing,
+    TestEmptyMoveSuppression,
+)
 
 # Post-processing tests split into 3 files for better organization
 from CAMTests.TestPostCore import TestPathPostUtils, TestBuildPostList, TestJobPropertyOverrides
