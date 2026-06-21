@@ -563,6 +563,17 @@ class CAMSanity:
                     Path.Log.warning(f"Failed to get postprocessor sanity checks: {e}")
                 else:
                     raise e
+            except Exception as e:
+                # A failing or misnamed postprocessor (e.g. ImportError/AttributeError while
+                # loading the post script) must not abort the entire sanity validation.
+                Path.Log.warning(f"Failed to get postprocessor sanity checks: {e}")
+                all_squawks.append(
+                    self.squawk(
+                        "CAM Sanity",
+                        f"Could not load postprocessor sanity checks: {e}",
+                        squawkType="CAUTION",
+                    )
+                )
 
         critical = [s for s in all_squawks if s["squawkType"] in ("WARNING", "CAUTION")]
         Path.Log.debug(f"get_all_squawks: {len(all_squawks)} squawks, {len(critical)} critical")
