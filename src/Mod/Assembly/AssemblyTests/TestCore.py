@@ -249,3 +249,67 @@ class TestCore(unittest.TestCase):
         joint.Proxy.setJointConnectors(joint, refs)
 
         self.assertTrue(box.Placement.isSame(box2.Placement, 1e-6), "'{}'".format(operation))
+
+    def _build_two_box_joint(self, joint_type):
+        """Build a grounded box, a free box and a joint of the given type between
+        the same JCS (Face6/Vertex7) on each. setJointConnectors triggers the
+        solve. Returns (movingBox, groundedBox, joint)."""
+        box = self.assembly.newObject("Part::Box", "Box")
+        box.Length = box.Width = box.Height = 10
+        box.Placement = App.Placement(App.Vector(10, 20, 30), App.Rotation(15, 25, 35))
+
+        box2 = self.assembly.newObject("Part::Box", "Box")
+        box2.Length = box2.Width = box2.Height = 10
+        box2.Placement = App.Placement(App.Vector(40, 50, 60), App.Rotation(45, 55, 65))
+
+        ground = self.jointgroup.newObject("App::FeaturePython", "GroundedJoint")
+        JointObject.GroundedJoint(ground, box2)
+
+        joint = self.jointgroup.newObject("App::FeaturePython", "testJoint")
+        JointObject.Joint(joint, joint_type)
+        refs = [
+            [box2, ["Face6", "Vertex7"]],
+            [box, ["Face6", "Vertex7"]],
+        ]
+        joint.Proxy.setJointConnectors(joint, refs)
+        return box, box2, joint
+
+    def _global_jcs(self, joint):
+        """Global placements of the two joint coordinate systems after the solve."""
+        g1 = UtilsAssembly.getJcsGlobalPlc(joint.Placement1, joint.Reference1)
+        g2 = UtilsAssembly.getJcsGlobalPlc(joint.Placement2, joint.Reference2)
+        return g1, g2
+
+    def test_solve_revolute(self):
+        """A revolute joint fully constrains translation, so the two joint
+        coordinate systems must share the same origin after solving."""
+        _msg("  Test 'Solve revolute joint'")
+        box, box2, joint = self._build_two_box_joint(1)  # 1 == Revolute
+        g1, g2 = self._global_jcs(joint)
+        self.assertTrue(g1.Base.isEqual(g2.Base, 1e-6), "revolute origins not coincident")
+
+    def test_solve_ball(self):
+        """A ball joint pins the two JCS origins together (only rotation is free)."""
+        _msg("  Test 'Solve ball joint'")
+        box, box2, joint = self._build_two_box_joint(4)  # 4 == Ball
+        g1, g2 = self._global_jcs(joint)
+        self.assertTrue(g1.Base.isEqual(g2.Base, 1e-6), "ball origins not coincident")
+
+    def test_solve_fixed_global_jcs_coincide(self):
+        """A fixed joint makes the two global joint coordinate systems identical."""
+        _msg("  Test 'Solve fixed joint (global JCS)'")
+        box, box2, joint = self._build_two_box_joint(0)  # 0 == Fixed
+        self.assertTrue(box.Placement.isSame(box2.Placement, 1e-6))
+        g1, g2 = self._global_jcs(joint)
+        self.assertTrue(g1.isSame(g2, 1e-6), "fixed JCS not coincident")
+
+    def test_solve_undo_roundtrip(self):
+        """solve(enableUndo=True) followed by undoSolve() leaves the placements
+        unchanged (round-trip identity)."""
+        _msg("  Test 'Solve undo round-trip'")
+        box, box2, joint = self._build_two_box_joint(0)
+        solved = box.Placement.copy()
+        self.assembly.solve(True)
+        self.assembly.undoSolve()
+        self.assertTrue(box.Placement.isSame(solved, 1e-6), "undo round-trip changed placement")
+        self.assembly.clearUndo()
