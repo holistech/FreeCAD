@@ -48,7 +48,7 @@ Conventions (apply to all roadmap work):
 | Phase | Theme | Plan | Status | Notes |
 |------|-------|------|--------|-------|
 | 0 | Reclaim dead tests & make CI trustworthy | [phase-0](phase-0-reclaim-and-ci.md) | Largely done | P0.4–P0.6 done; P0.1 reclaimed; P0.3 awaits human push; P0.2 blocked by a bug (FU-1) |
-| 1 | De-risk numerical/geometry cores | [phase-1](phase-1-numeric-cores.md) | Not started | PlaneGCS, HLR, Assembly solver, Mesh repair |
+| 1 | De-risk numerical/geometry cores | [phase-1](phase-1-numeric-cores.md) | Done | All 4 suites pushed (PlaneGCS, HLR, Assembly, Mesh); 29 new tests green; found FU-3 |
 | 2 | Data-exchange round-trips | [phase-2](phase-2-data-exchange.md) | Not started | STEP/IGES/glTF, IFC, mesh, CSV/XLSX, DXF |
 | 3 | Fill zero-coverage modules | [phase-3](phase-3-zero-coverage-modules.md) | Not started | ReverseEngineering, Measure, Points, Robot/Inspection |
 | 4 | GUI tests + coverage measurement | [phase-4](phase-4-gui-and-coverage.md) | Not started | Coverage target unlocks quantitative tracking |
@@ -72,10 +72,10 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 ### Phase 1 — Numerical / geometry cores
 | ID | Task | Status | Branch/PR | Last update |
 |----|------|--------|-----------|-------------|
-| P1.1 | PlaneGCS solver unit suite | Not started | — | 2026-06-22 |
-| P1.2 | TechDraw HLR golden tests | Not started | — | 2026-06-22 |
-| P1.3 | Assembly solver matrix | Not started | — | 2026-06-22 |
-| P1.4 | Mesh repair + boolean ops | Not started | — | 2026-06-22 |
+| P1.1 | PlaneGCS solver unit suite | Done | `test/sketcher-planegcs-core` (pushed; 8 tests green) | 2026-06-22 |
+| P1.2 | TechDraw HLR golden tests | Done | `test/techdraw-hlr-golden` (pushed; 7 tests green) | 2026-06-22 |
+| P1.3 | Assembly solver matrix | Done | `test/assembly-solver-matrix` (pushed; C++ 2 + Python 4 green) | 2026-06-22 |
+| P1.4 | Mesh repair + boolean ops | Done | `test/mesh-repair-and-booleans` (pushed; 8 tests green) | 2026-06-22 |
 
 ### Phase 2 — Data-exchange round-trips
 | ID | Task | Status | Branch/PR | Last update |
@@ -109,6 +109,7 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 |----|-----|-------|--------|-------|
 | FU-1 | NativeIFC self-test: multiple defects + GUI-runner hang | `src/Mod/BIM/nativeifc/` | **Partly fixed** (`fix/nativeifc-selftest-bugs`, pushed) | 4 genuine bugs fixed (below). Suite **not yet enableable**: 2 stale assertions + a systemic GUI hang remain. |
 | FU-2 | `TestSpreadsheetGui` hung headless, errored on args, never installed | `src/Mod/Spreadsheet/` | **Fixed & enabled** (`fix/spreadsheet-gui-test`, pushed) | Now green under `xvfb-run FreeCAD -t TestSpreadsheetGui`; wired into CMakeLists + GUI `__unit_test__`. |
+| FU-3 | Built-in mesh booleans are not volumetrically reliable | `src/Mod/Mesh/App/Core/SetOperations` | Open (found during P1.4) | For two trivial overlapping axis-aligned cubes, `MeshObject::unite`/`subtract` produce geometrically wrong, non-watertight results and volumes vary between runs (union came out 6.7 < a single cube's 8; only `intersect` had a plausible bbox). P1.4 therefore only smoke-tests the booleans. Needs a maintainer / possibly the GTS/OpenVDB backend. |
 
 ### FU-2 — fixed (branch `fix/spreadsheet-gui-test`)
 Not a "stale test needing rewrite" — four concrete defects:
@@ -146,13 +147,15 @@ documented the remaining maintainer-level blockers.
 
 ## Current focus
 
-> **Phase 0 is effectively complete for everything achievable now.** Done & pushed: P0.4, P0.5, P0.6,
-> P0.1 (all reclaimable suites). P0.3 is implemented but **awaits a human push** (workflow scope).
-> **Follow-up bugs:** FU-2 **fixed & enabled** (`fix/spreadsheet-gui-test`). FU-1 **partly fixed**
-> (`fix/nativeifc-selftest-bugs`: 4 real bugs) — P0.2 still blocked by a systemic GUI-runner hang + 2
-> stale assertions that need a NativeIFC maintainer.
-> **Recommended next:** start **Phase 1** (P1.1 PlaneGCS); raise the FU-1 GUI-hang / stale assertions
-> with a NativeIFC maintainer (or upstream) since they need domain judgement.
+> **Phase 0 + Phase 1 are done and pushed.** Phase 0: P0.4/P0.5/P0.6 + P0.1 reclaim (P0.3 awaits a
+> human workflow-scope push; P0.2 blocked by FU-1). Phase 1: all four numeric-core suites pushed
+> (`test/sketcher-planegcs-core`, `test/mesh-repair-and-booleans`, `test/techdraw-hlr-golden`,
+> `test/assembly-solver-matrix`) — 29 new tests, all green via `pixi run ctest` / FreeCADCmd.
+> **Follow-up bugs:** FU-2 fixed & enabled; FU-1 partly fixed; **FU-3** found in P1.4 (mesh booleans
+> unreliable).
+> **Recommended next:** start **Phase 2** (data-exchange round-trips, P2.1 STEP/IGES/glTF); or raise
+> FU-1/FU-3 with the relevant maintainers (they need domain judgement). All Phase-1 branches still need
+> a human review + upstream PR per the AI policy.
 > **Action needed from a human:** push `ci/run-binding-generator-tests` after granting the `workflow`
 > OAuth scope (`gh auth refresh -h github.com -s workflow`), or apply that one-line workflow change via
 > the GitHub web UI.
@@ -162,6 +165,22 @@ documented the remaining maintainer-level blockers.
 ## Session Log
 
 Append newest entries at the top. Format: `### YYYY-MM-DD — <who>`.
+
+### 2026-06-22 — Phase 1 complete: numeric-core test suites (4 branches pushed)
+- **P1.1 PlaneGCS** (`test/sketcher-planegcs-core`): 8 known-answer GTest cases driving `GCS::System`
+  directly (distance, coincident, point-on-line, L2L angle, circle+point-on-circle, zero-DoF, redundant,
+  conflicting). All green via `pixi run ctest -R PlaneGCSSolverTest`.
+- **P1.4 Mesh** (`test/mesh-repair-and-booleans`): 8 cases — repair (duplicate/degenerate/non-manifold/
+  hole) + decimation are exact; **discovered FU-3** (built-in mesh booleans give wrong, non-watertight,
+  run-varying volumes for trivial cubes) so the boolean tests were reduced to honest smoke checks.
+- **P1.2 TechDraw HLR** (`test/techdraw-hlr-golden`): 7 golden ProjectionAlgos cases (cube front/iso,
+  rectangular extent, cylinder side/end, through-hole along/across bore); edge counts calibrated and
+  pinned. The iso cube gives the textbook 9 visible / 3 hidden.
+- **P1.3 Assembly** (`test/assembly-solver-matrix`): filled the empty C++ test (empty assembly solves
+  with DoF 0; getters only reachable in C++) + 4 Python cases (revolute/ball JCS-origin coincidence,
+  fixed global-JCS identity, undo round-trip).
+- Each verified with `pixi run ctest` (conda toolchain) / `FreeCADCmd -t TestAssemblyWorkbench`. The
+  refined plan (`phase-1-numeric-cores.md`) drove all four. Branches await human review + upstream PR.
 
 ### 2026-06-22 — FU-1 + FU-2 fixes (`fix/nativeifc-selftest-bugs`, `fix/spreadsheet-gui-test`, pushed)
 - **FU-2 fully fixed & enabled.** Diagnosed it was not a "stale rewrite" but four concrete defects
