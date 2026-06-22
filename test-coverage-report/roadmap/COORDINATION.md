@@ -43,7 +43,7 @@ Conventions (apply to all roadmap work):
 
 | Phase | Theme | Plan | Status | Notes |
 |------|-------|------|--------|-------|
-| 0 | Reclaim dead tests & make CI trustworthy | [phase-0](phase-0-reclaim-and-ci.md) | Not started | Highest value/effort; do first |
+| 0 | Reclaim dead tests & make CI trustworthy | [phase-0](phase-0-reclaim-and-ci.md) | In progress | P0.1 (partial) + P0.3 pushed; see tracker |
 | 1 | De-risk numerical/geometry cores | [phase-1](phase-1-numeric-cores.md) | Not started | PlaneGCS, HLR, Assembly solver, Mesh repair |
 | 2 | Data-exchange round-trips | [phase-2](phase-2-data-exchange.md) | Not started | STEP/IGES/glTF, IFC, mesh, CSV/XLSX, DXF |
 | 3 | Fill zero-coverage modules | [phase-3](phase-3-zero-coverage-modules.md) | Not started | ReverseEngineering, Measure, Points, Robot/Inspection |
@@ -58,9 +58,9 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 ### Phase 0 — Reclaim & CI
 | ID | Task | Status | Branch/PR | Last update |
 |----|------|--------|-----------|-------------|
-| P0.1 | Register/re-enable dormant test suites | Not started | — | 2026-06-22 |
+| P0.1 | Register/re-enable dormant test suites | In progress | `test/reclaim-dead-suites` (pushed) | 2026-06-22 |
 | P0.2 | Offline IFC fixture + re-enable NativeIFC self-test | Not started | — | 2026-06-22 |
-| P0.3 | CI discovery includes `src/Tools/bindings/tests/` | Not started | — | 2026-06-22 |
+| P0.3 | CI discovery includes `src/Tools/bindings/tests/` | In review | `ci/run-binding-generator-tests` (local; push needs `workflow` OAuth scope) | 2026-06-22 |
 | P0.4 | Wire Python suites into ctest | Not started | — | 2026-06-22 |
 | P0.5 | Runner-wide fd/teardown guard | Not started | — | 2026-06-22 |
 | P0.6 | Fail CI on import-failed registered modules | Not started | — | 2026-06-22 |
@@ -101,14 +101,33 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 
 ## Current focus
 
-> Recommended next branch: **P0.1 + P0.3** (`test/reclaim-dead-suites`). See
-> [phase-0](phase-0-reclaim-and-ci.md).
+> P0.1 first wave + P0.3 are done and pushed. Next: finish P0.1's remaining dormant suites
+> (GUI tests need xvfb → couple with P4.3; Draft commented importers need data/investigation;
+> FEM `function_tests`), then P0.4/P0.5.
+> **Action needed from a human:** push `ci/run-binding-generator-tests` after granting the `workflow`
+> OAuth scope (`gh auth refresh -h github.com -s workflow`), or apply that one-line workflow change via
+> the GitHub web UI.
 
 ---
 
 ## Session Log
 
 Append newest entries at the top. Format: `### YYYY-MM-DD — <who>`.
+
+### 2026-06-22 — P0.1 first wave + P0.3
+- **P0.3 done** (`ci/run-binding-generator-tests`, local only): added a CI step running the
+  binding-generator tests from `src/Tools/bindings/tests`. Push blocked by missing `workflow` OAuth
+  scope — needs a human to push or apply via web UI.
+- **P0.1 partial** (`test/reclaim-dead-suites`, pushed): registered Spreadsheet `test_importXLSX`
+  (3 tests, green) and FEM `TestSolverMystran` as `FemTest12`, guarded with `skipUnless(pyNastran)`
+  (pyNastran is an optional dep absent in the pixi env → 7 tests skip cleanly instead of erroring).
+- Verified locally: `-t test_importXLSX` 3 OK, `-t TestSpreadsheet` 87 OK, `-t TestFemApp` 97 OK
+  (7 skipped). NB: `-t 0` still fails on this branch — that is the CAM `TestCAMSanity` fd-abort, which
+  is fixed only on `fix/cam-...` (not on `main`), unrelated to these changes.
+- **Remaining in P0.1:** GUI-side dormant suites (`TestTreeSelection`, Material GUI,
+  `TestSpreadsheetGui`) need an xvfb run to verify (couple with P4.3); Draft DWG/OCA/AirfoilDAT
+  importer suites need data/investigation; FEM `function_tests`/GUI; TemplatePyMod (template module,
+  low value).
 
 ### 2026-06-22 — initial setup
 - Created the roadmap coordination hub and the five per-phase implementation plans.
