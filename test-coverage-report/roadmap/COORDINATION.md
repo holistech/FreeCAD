@@ -51,7 +51,7 @@ Conventions (apply to all roadmap work):
 | 1 | De-risk numerical/geometry cores | [phase-1](phase-1-numeric-cores.md) | Done | All 4 suites pushed (PlaneGCS, HLR, Assembly, Mesh); 29 new tests green; found FU-3 |
 | 2 | Data-exchange round-trips | [phase-2](phase-2-data-exchange.md) | Done | All 5 suites pushed; 27 new tests green; found FU-4/FU-5 |
 | 3 | Fill zero-coverage modules | [phase-3](phase-3-zero-coverage-modules.md) | Done | All 4 suites pushed (ReverseEngineering, Measure, Points, Robot/Inspection); 30 new tests green; found FU-6 |
-| 4 | GUI tests + coverage measurement | [phase-4](phase-4-gui-and-coverage.md) | Not started | Coverage target unlocks quantitative tracking |
+| 4 | GUI tests + coverage measurement | [phase-4](phase-4-gui-and-coverage.md) | Done | Coverage flavor + CommandManager offscreen tests + CAM GUI skip-guards pushed; 2 workflow files await a `workflow`-scope push |
 
 ---
 
@@ -97,9 +97,9 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 ### Phase 4 — GUI + coverage measurement
 | ID | Task | Status | Branch/PR | Last update |
 |----|------|--------|-----------|-------------|
-| P4.1 | Coverage-measurement target (gcov/lcov + coverage.py) | Not started | — | 2026-06-22 |
-| P4.2 | Shared Gui subsystem tests (offscreen) | Not started | — | 2026-06-22 |
-| P4.3 | Per-workbench GUI smoke tests under xvfb | Not started | — | 2026-06-22 |
+| P4.1 | Coverage-measurement target (gcovr + coverage.py) | Done | `ci/coverage-target` (pushed) + `ci/coverage-workflow` (local; needs `workflow` scope) | 2026-06-22 |
+| P4.2 | Shared Gui subsystem tests (offscreen) | Done | `test/gui-shared-subsystems` (pushed; CommandManager, 6 tests green) | 2026-06-22 |
+| P4.3 | Per-workbench GUI smoke tests under xvfb | Done | `ci/gui-tests-xvfb` (pushed; CAM widget GUI skip-guards) | 2026-06-22 |
 
 ---
 
@@ -150,28 +150,53 @@ documented the remaining maintainer-level blockers.
 
 ## Current focus
 
-> **Phases 0, 1, 2 and 3 are done and pushed.** Phase 0: P0.4/P0.5/P0.6 + P0.1 reclaim (P0.3 awaits a
+> **All five phases (0–4) are done and pushed.** Phase 0: P0.4/P0.5/P0.6 + P0.1 reclaim (P0.3 awaits a
 > human workflow-scope push; P0.2 blocked by FU-1). Phase 1: four numeric-core suites (29 tests).
-> Phase 2: five data-exchange suites (27 tests). Phase 3: four zero-coverage-module suites pushed
-> (`test/reverseeng-synthetic`, `test/measure-all-types`, `test/points-jt-parsers`,
-> `test/robot-inspection-logic`) — 30 new tests, all green via `FreeCADCmd -t` / `ctest`.
+> Phase 2: five data-exchange suites (27 tests). Phase 3: four zero-coverage-module suites (30 tests).
+> Phase 4: a coverage build flavor (`ci/coverage-target`), offscreen CommandManager tests
+> (`test/gui-shared-subsystems`, 6 tests), and CAM GUI skip-guards (`ci/gui-tests-xvfb`) — all green
+> via `pixi run ctest` / `FreeCADCmd -t` / `xvfb-run FreeCAD -t`.
 > **Follow-up bugs:** FU-2 fixed; FU-1 partly fixed; FU-3 (mesh booleans), **FU-4** (legacy IFC import
 > broken on ifcopenshell 0.8), **FU-5** (IFC2X3 structure export uses IFC4-only entity) and **FU-6**
 > (`Robot.Trajectory.deleteLast()` native crash) found in P1/P2/P3.
-> **Recommended next:** **Phase 4** (GUI tests under xvfb + a coverage-measurement target) is the only
-> remaining roadmap phase. Within Phase 3, JtReader (BUILD off; parser entry `JtReader::readToc()` with
-> fixtures under `data/tests/Jt/`) and E57 import (reader only, no writer/fixture) are deliberately left
-> out and noted in the suites. All Phase-1/2/3 branches still need a human review + upstream PR per the
-> AI policy; FU-1/FU-3/FU-4/FU-5/FU-6 need the relevant maintainers.
-> **Action needed from a human:** push `ci/run-binding-generator-tests` after granting the `workflow`
-> OAuth scope (`gh auth refresh -h github.com -s workflow`), or apply that one-line workflow change via
-> the GitHub web UI.
+> **Recommended next:** the roadmap is complete. Remaining work is a human-side push of the two CI
+> workflow files (below) plus review + upstream PRs for all branches. Deliberately scoped out and
+> documented: JtReader (BUILD off), E57 import (reader only), the full instrumented C++ coverage run
+> (CI-only, ccache-busting), and `checkAcceleratorForConflicts` (couples to the global Gui singleton).
+> All test branches still need a human review + upstream PR per the AI policy;
+> FU-1/FU-3/FU-4/FU-5/FU-6 need the relevant maintainers.
+> **Action needed from a human (workflow OAuth scope):** after `gh auth refresh -h github.com -s workflow`,
+> push `ci/run-binding-generator-tests` (P0.3) and `ci/coverage-workflow` (P4.1's
+> `.github/workflows/coverage.yml`) — both were rejected locally for lacking the `workflow` scope.
+> Note for local builds: the conda/pixi build requires `FREECAD_USE_EXTERNAL_SMESH=ON` (the preset sets
+> it); a bare `cmake` outside `pixi run` can reset it and then fail on a missing `med.h`.
 
 ---
 
 ## Session Log
 
 Append newest entries at the top. Format: `### YYYY-MM-DD — <who>`.
+
+### 2026-06-22 — Phase 4 complete: GUI tests + coverage measurement
+- **P4.1 Coverage** (`ci/coverage-target` pushed; `ci/coverage-workflow` local): a FREECAD_COVERAGE CMake
+  option + SetupCoverage helper, a conda-linux-coverage preset (own build/coverage tree), gcovr + coverage
+  pixi deps and configure/build/test/report tasks, and a FreeCADTest.py hook that wraps the embedded run in
+  coverage.py when FREECAD_PYTHON_COVERAGE is set. Validated locally: preset/tasks parse, deps resolve
+  (gcovr, coverage 7.14.2), configure-coverage applies the instrumentation, and the Python hook produced a
+  real report (TestPoints 99%). The full instrumented C++ rebuild is left to the on-demand coverage.yml CI
+  job (ccache-busting). The workflow file is on a separate branch pending a `workflow`-scope push.
+- **P4.2 Shared Gui** (`test/gui-shared-subsystems`): CommandManagerTest.cpp added to Gui_tests_run, runs
+  offscreen with a minimal concrete Gui::Command — covers add/lookup, the command list/map, revision
+  tracking, duplicate rejection, module/group filtering, removal (6 tests green via ctest). Selection is
+  already covered by the existing SelectionTest; checkAcceleratorForConflicts is left out because it
+  queries the global Gui::Application singleton, not its own instance.
+- **P4.3 GUI under xvfb** (`ci/gui-tests-xvfb`): guarded the five CAM TestPathToolBit*Widget suites with
+  `@unittest.skipIf(not FreeCAD.GuiUp, ...)` so they skip cleanly under FreeCADCmd (verified: 34 skipped,
+  no abort) instead of a fatal "Must construct a QApplication" crash, while still running under
+  `xvfb-run FreeCAD -t` (verified: 34 run). CI already runs `xvfb-run FreeCAD -t 0` (sub_buildPixi/Ubuntu).
+- Recovery note: a stray bare `cmake` (outside `pixi run`) reset FREECAD_USE_EXTERNAL_SMESH and exposed a
+  missing med.h; restored build/debug by reconfiguring with `-DFREECAD_USE_EXTERNAL_SMESH=ON` (the preset
+  value). No FreeCAD defect — an environment/workflow gotcha, captured in Current focus.
 
 ### 2026-06-22 — Phase 3 complete: zero-coverage modules (4 branches pushed)
 - **P3.1 ReverseEngineering** (`test/reverseeng-synthetic`): `TestReverseEngineering.py` (8 tests) drives
