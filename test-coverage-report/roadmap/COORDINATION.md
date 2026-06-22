@@ -49,7 +49,7 @@ Conventions (apply to all roadmap work):
 |------|-------|------|--------|-------|
 | 0 | Reclaim dead tests & make CI trustworthy | [phase-0](phase-0-reclaim-and-ci.md) | Largely done | P0.4–P0.6 done; P0.1 reclaimed; P0.3 awaits human push; P0.2 blocked by a bug (FU-1) |
 | 1 | De-risk numerical/geometry cores | [phase-1](phase-1-numeric-cores.md) | Done | All 4 suites pushed (PlaneGCS, HLR, Assembly, Mesh); 29 new tests green; found FU-3 |
-| 2 | Data-exchange round-trips | [phase-2](phase-2-data-exchange.md) | Not started | STEP/IGES/glTF, IFC, mesh, CSV/XLSX, DXF |
+| 2 | Data-exchange round-trips | [phase-2](phase-2-data-exchange.md) | Done | All 5 suites pushed; 27 new tests green; found FU-4/FU-5 |
 | 3 | Fill zero-coverage modules | [phase-3](phase-3-zero-coverage-modules.md) | Not started | ReverseEngineering, Measure, Points, Robot/Inspection |
 | 4 | GUI tests + coverage measurement | [phase-4](phase-4-gui-and-coverage.md) | Not started | Coverage target unlocks quantitative tracking |
 
@@ -80,11 +80,11 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 ### Phase 2 — Data-exchange round-trips
 | ID | Task | Status | Branch/PR | Last update |
 |----|------|--------|-----------|-------------|
-| P2.1 | STEP/IGES/glTF/BREP round-trip | Not started | — | 2026-06-22 |
-| P2.2 | IFC2X3 + IFC4 round-trip | Not started | — | 2026-06-22 |
-| P2.3 | Mesh formats round-trip | Not started | — | 2026-06-22 |
-| P2.4 | Spreadsheet CSV + XLSX | Not started | — | 2026-06-22 |
-| P2.5 | Draft DXF import corpus | Not started | — | 2026-06-22 |
+| P2.1 | STEP/IGES/glTF/BREP round-trip | Done | `test/exchange-step-iges-gltf` (pushed; 7 tests) | 2026-06-22 |
+| P2.2 | IFC2X3 + IFC4 round-trip | Done | `test/exchange-ifc-roundtrip` (pushed; 3 tests; found FU-4/FU-5) | 2026-06-22 |
+| P2.3 | Mesh formats round-trip | Done | `test/exchange-mesh-formats` (pushed; 10 tests) | 2026-06-22 |
+| P2.4 | Spreadsheet CSV + XLSX | Done | `test/spreadsheet-csv-xlsx` (pushed; 5 tests) | 2026-06-22 |
+| P2.5 | Draft DXF import corpus | Done | `test/draft-dxf-corpus` (pushed; 2 new round-trips) | 2026-06-22 |
 
 ### Phase 3 — Zero-coverage modules
 | ID | Task | Status | Branch/PR | Last update |
@@ -110,6 +110,8 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 | FU-1 | NativeIFC self-test: multiple defects + GUI-runner hang | `src/Mod/BIM/nativeifc/` | **Partly fixed** (`fix/nativeifc-selftest-bugs`, pushed) | 4 genuine bugs fixed (below). Suite **not yet enableable**: 2 stale assertions + a systemic GUI hang remain. |
 | FU-2 | `TestSpreadsheetGui` hung headless, errored on args, never installed | `src/Mod/Spreadsheet/` | **Fixed & enabled** (`fix/spreadsheet-gui-test`, pushed) | Now green under `xvfb-run FreeCAD -t TestSpreadsheetGui`; wired into CMakeLists + GUI `__unit_test__`. |
 | FU-3 | Built-in mesh booleans are not volumetrically reliable | `src/Mod/Mesh/App/Core/SetOperations` | Open (found during P1.4) | For two trivial overlapping axis-aligned cubes, `MeshObject::unite`/`subtract` produce geometrically wrong, non-watertight results and volumes vary between runs (union came out 6.7 < a single cube's 8; only `intersect` had a plausible bbox). P1.4 therefore only smoke-tests the booleans. Needs a maintainer / possibly the GTS/OpenVDB backend. |
+| FU-4 | Legacy IFC importer broken against ifcopenshell 0.8 | `src/Mod/BIM/importers/importIFC.py` (+ `importIFCmulticore.py`) | Open (found during P2.2) | Both the single-core and multicore import paths set `ifcopenshell.geom.settings.USE_BREP_DATA`, which was removed in ifcopenshell 0.8 → `AttributeError`, so legacy IFC import fails entirely. P2.2 verifies the export via ifcopenshell instead of FreeCAD re-import. Needs the flag updated to the 0.8 API. |
+| FU-5 | Structure export to IFC2X3 uses an IFC4-only entity | `src/Mod/BIM/importers/exportIFC.py` | Open (found during P2.2) | Exporting an Arch Structure to IFC2X3 raises `IfcCartesianPointList3D not found in schema IFC2X3` (a tessellation entity that only exists in IFC4). P2.2's structure test is restricted to IFC4. Needs a SweptSolid/faceted fallback for IFC2X3. |
 
 ### FU-2 — fixed (branch `fix/spreadsheet-gui-test`)
 Not a "stale test needing rewrite" — four concrete defects:
@@ -147,15 +149,16 @@ documented the remaining maintainer-level blockers.
 
 ## Current focus
 
-> **Phase 0 + Phase 1 are done and pushed.** Phase 0: P0.4/P0.5/P0.6 + P0.1 reclaim (P0.3 awaits a
-> human workflow-scope push; P0.2 blocked by FU-1). Phase 1: all four numeric-core suites pushed
-> (`test/sketcher-planegcs-core`, `test/mesh-repair-and-booleans`, `test/techdraw-hlr-golden`,
-> `test/assembly-solver-matrix`) — 29 new tests, all green via `pixi run ctest` / FreeCADCmd.
-> **Follow-up bugs:** FU-2 fixed & enabled; FU-1 partly fixed; **FU-3** found in P1.4 (mesh booleans
-> unreliable).
-> **Recommended next:** start **Phase 2** (data-exchange round-trips, P2.1 STEP/IGES/glTF); or raise
-> FU-1/FU-3 with the relevant maintainers (they need domain judgement). All Phase-1 branches still need
-> a human review + upstream PR per the AI policy.
+> **Phases 0, 1 and 2 are done and pushed.** Phase 0: P0.4/P0.5/P0.6 + P0.1 reclaim (P0.3 awaits a
+> human workflow-scope push; P0.2 blocked by FU-1). Phase 1: four numeric-core suites (29 tests).
+> Phase 2: five data-exchange suites pushed (`test/exchange-step-iges-gltf`, `test/exchange-mesh-formats`,
+> `test/spreadsheet-csv-xlsx`, `test/draft-dxf-corpus`, `test/exchange-ifc-roundtrip`) — 27 new tests,
+> all green via `FreeCADCmd -t`.
+> **Follow-up bugs:** FU-2 fixed; FU-1 partly fixed; FU-3 (mesh booleans), **FU-4** (legacy IFC import
+> broken on ifcopenshell 0.8) and **FU-5** (IFC2X3 structure export uses IFC4-only entity) found in P1/P2.
+> **Recommended next:** start **Phase 3** (zero-coverage modules: ReverseEngineering, Measure, Points,
+> Robot/Inspection). All Phase-1/2 branches still need a human review + upstream PR per the AI policy;
+> FU-1/FU-3/FU-4/FU-5 need the relevant maintainers.
 > **Action needed from a human:** push `ci/run-binding-generator-tests` after granting the `workflow`
 > OAuth scope (`gh auth refresh -h github.com -s workflow`), or apply that one-line workflow change via
 > the GitHub web UI.
@@ -165,6 +168,24 @@ documented the remaining maintainer-level blockers.
 ## Session Log
 
 Append newest entries at the top. Format: `### YYYY-MM-DD — <who>`.
+
+### 2026-06-22 — Phase 2 complete: data-exchange round-trips (5 branches pushed)
+- **P2.1 STEP/IGES/glTF/BREP** (`test/exchange-step-iges-gltf`): headless `TestImportApp.py` (7 tests) —
+  BREP exact (file + string), STEP near-exact, IGES via area/bbox, glTF export-file check, malformed
+  STEP. glTF re-import is GUI-path-bound (export-only headless), noted in the test.
+- **P2.3 Mesh** (`test/exchange-mesh-formats`): `MeshFormatTests.py` (10 tests) — PLY/OFF/SMF/OBJ exact
+  point+facet counts, binary/ASCII STL agree, VRML asserted export-only, clean failure on missing/unknown.
+- **P2.4 Spreadsheet** (`test/spreadsheet-csv-xlsx`): `TestSpreadsheetExchange.py` (5 tests) — CSV tab/
+  comma round-trips, formula-as-value, a generated-on-the-fly minimal XLSX import, FCStd persistence.
+- **P2.5 Draft DXF** (`test/draft-dxf-corpus`): replaced the fake-function export stub with two real
+  C++-backend round-trips (line+circle edge lengths; multi-segment wire total length); no download.
+- **P2.2 IFC** (`test/exchange-ifc-roundtrip`): `bimtests/TestArchIFCRoundTrip.py` (3 tests, run via
+  TestArch → 276 total) — exports a wall/structure to IFC2X3+IFC4 and verifies schema/classes/spatial
+  root with ifcopenshell. **Found FU-4** (legacy importer broken on ifcopenshell 0.8 — USE_BREP_DATA)
+  and **FU-5** (IFC2X3 structure export uses the IFC4-only IfcCartesianPointList3D). Verified the export
+  via ifcopenshell rather than FreeCAD re-import, and restricted the structure test to IFC4.
+- All verified with `build/debug/bin/FreeCADCmd -t <module>`. The refined plan (`phase-2-data-exchange.md`)
+  drove all five. Branches await human review + upstream PR.
 
 ### 2026-06-22 — Phase 1 complete: numeric-core test suites (4 branches pushed)
 - **P1.1 PlaneGCS** (`test/sketcher-planegcs-core`): 8 known-answer GTest cases driving `GCS::System`
