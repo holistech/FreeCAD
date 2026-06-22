@@ -116,8 +116,20 @@ class NativeIFCTest(unittest.TestCase):
         FreeCAD.setActiveDocument("IfcTest")
 
     def tearDown(self):
+        # test12 installs a document observer; if it is left running it keeps
+        # reacting to object creation/recompute in later tests and during
+        # teardown, which (together with the deferred QTimer recomputes) can
+        # spin the GUI event loop into an endless "Recursive calling of
+        # recompute" loop. Remove it and drain any pending deferred callbacks
+        # before closing the document.
+        from . import ifc_observer
+
+        ifc_observer.remove_observer()
+        if FreeCAD.GuiUp:
+            from PySide import QtCore
+
+            QtCore.QCoreApplication.processEvents()
         FreeCAD.closeDocument("IfcTest")
-        pass
 
     def assertClassEnumMatchesFamily(self, obj, root_name):
         ifcfile = ifc_tools.get_ifcfile(obj)
