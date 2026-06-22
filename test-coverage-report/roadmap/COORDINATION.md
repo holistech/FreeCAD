@@ -43,7 +43,7 @@ Conventions (apply to all roadmap work):
 
 | Phase | Theme | Plan | Status | Notes |
 |------|-------|------|--------|-------|
-| 0 | Reclaim dead tests & make CI trustworthy | [phase-0](phase-0-reclaim-and-ci.md) | In progress | P0.1 (partial) + P0.3 pushed; see tracker |
+| 0 | Reclaim dead tests & make CI trustworthy | [phase-0](phase-0-reclaim-and-ci.md) | In progress | P0.5 done; P0.1 (partial) + P0.3 pushed; P0.4/P0.6 next |
 | 1 | De-risk numerical/geometry cores | [phase-1](phase-1-numeric-cores.md) | Not started | PlaneGCS, HLR, Assembly solver, Mesh repair |
 | 2 | Data-exchange round-trips | [phase-2](phase-2-data-exchange.md) | Not started | STEP/IGES/glTF, IFC, mesh, CSV/XLSX, DXF |
 | 3 | Fill zero-coverage modules | [phase-3](phase-3-zero-coverage-modules.md) | Not started | ReverseEngineering, Measure, Points, Robot/Inspection |
@@ -62,7 +62,7 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 | P0.2 | Offline IFC fixture + re-enable NativeIFC self-test | Not started | — | 2026-06-22 |
 | P0.3 | CI discovery includes `src/Tools/bindings/tests/` | In review | `ci/run-binding-generator-tests` (local; push needs `workflow` OAuth scope) | 2026-06-22 |
 | P0.4 | Wire Python suites into ctest | Not started | — | 2026-06-22 |
-| P0.5 | Runner-wide fd/teardown guard | Not started | — | 2026-06-22 |
+| P0.5 | Runner-wide fd/teardown guard | Done | `test/runner-fd-guard` (pushed) | 2026-06-22 |
 | P0.6 | Fail CI on import-failed registered modules | Not started | — | 2026-06-22 |
 
 ### Phase 1 — Numerical / geometry cores
@@ -101,9 +101,9 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 
 ## Current focus
 
-> P0.1 first wave + P0.3 are done and pushed. Next: finish P0.1's remaining dormant suites
-> (GUI tests need xvfb → couple with P4.3; Draft commented importers need data/investigation;
-> FEM `function_tests`), then P0.4/P0.5.
+> P0.3, P0.5 done and pushed; P0.1 first wave pushed. Next: **P0.4** (wire Python suites into ctest)
+> and **P0.6** (fail CI on import-failed modules), then finish P0.1's remaining dormant suites
+> (GUI tests need xvfb → couple with P4.3; Draft commented importers need data; FEM `function_tests`).
 > **Action needed from a human:** push `ci/run-binding-generator-tests` after granting the `workflow`
 > OAuth scope (`gh auth refresh -h github.com -s workflow`), or apply that one-line workflow change via
 > the GitHub web UI.
@@ -113,6 +113,17 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 ## Session Log
 
 Append newest entries at the top. Format: `### YYYY-MM-DD — <who>`.
+
+### 2026-06-22 — P0.5 done (runner fd-guard)
+- **P0.5 done** (`test/runner-fd-guard`, pushed): `src/Mod/Test/TestApp.py` `TestText` now runs the
+  reporter on a private dup of fd 1 and restores fd 1 after every test (TestResult.stopTest hook).
+- Demonstrated value: on `main` (no CAM fix) `FreeCADCmd -t 0` previously aborted after ~355 tests
+  with `[Errno 9] Bad file descriptor`; it now runs to completion — **2445 tests OK** (14 skipped,
+  6 expected failures, 0 errors). First run with only the report-stream protected still showed 2
+  errors (`TestPathHelixGenerator.test00` etc.) from a `print()` on the closed fd left by
+  `TestCAMSanity`; the per-test restore fixes that — that was the reason for the stopTest hook.
+- This generically protects the whole suite against fd corruption, independent of the CAM-specific
+  fix on `fix/cam-...`.
 
 ### 2026-06-22 — P0.1 first wave + P0.3
 - **P0.3 done** (`ci/run-binding-generator-tests`, local only): added a CI step running the
