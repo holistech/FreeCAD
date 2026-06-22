@@ -50,7 +50,7 @@ Conventions (apply to all roadmap work):
 | 0 | Reclaim dead tests & make CI trustworthy | [phase-0](phase-0-reclaim-and-ci.md) | Largely done | P0.4–P0.6 done; P0.1 reclaimed; P0.3 awaits human push; P0.2 blocked by a bug (FU-1) |
 | 1 | De-risk numerical/geometry cores | [phase-1](phase-1-numeric-cores.md) | Done | All 4 suites pushed (PlaneGCS, HLR, Assembly, Mesh); 29 new tests green; found FU-3 |
 | 2 | Data-exchange round-trips | [phase-2](phase-2-data-exchange.md) | Done | All 5 suites pushed; 27 new tests green; found FU-4/FU-5 |
-| 3 | Fill zero-coverage modules | [phase-3](phase-3-zero-coverage-modules.md) | Not started | ReverseEngineering, Measure, Points, Robot/Inspection |
+| 3 | Fill zero-coverage modules | [phase-3](phase-3-zero-coverage-modules.md) | Done | All 4 suites pushed (ReverseEngineering, Measure, Points, Robot/Inspection); 30 new tests green; found FU-6 |
 | 4 | GUI tests + coverage measurement | [phase-4](phase-4-gui-and-coverage.md) | Not started | Coverage target unlocks quantitative tracking |
 
 ---
@@ -89,10 +89,10 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 ### Phase 3 — Zero-coverage modules
 | ID | Task | Status | Branch/PR | Last update |
 |----|------|--------|-----------|-------------|
-| P3.1 | ReverseEngineering algorithms | Not started | — | 2026-06-22 |
-| P3.2 | Measure — all 7 measurement types | Not started | — | 2026-06-22 |
-| P3.3 | Points persistence/E57 + JtReader parser | Not started | — | 2026-06-22 |
-| P3.4 | Robot / Inspection logic | Not started | — | 2026-06-22 |
+| P3.1 | ReverseEngineering algorithms | Done | `test/reverseeng-synthetic` (pushed; 8 tests; OCC + PCL-guarded) | 2026-06-22 |
+| P3.2 | Measure — all 7 measurement types | Done | `test/measure-all-types` (pushed; C++ 7 + Python 9 green) | 2026-06-22 |
+| P3.3 | Points persistence/E57 + JtReader parser | Done | `test/points-jt-parsers` (pushed; 4 tests; E57/JtReader scoped out) | 2026-06-22 |
+| P3.4 | Robot / Inspection logic | Done | `test/robot-inspection-logic` (pushed; Robot 7 + Inspection 3; found FU-6) | 2026-06-22 |
 
 ### Phase 4 — GUI + coverage measurement
 | ID | Task | Status | Branch/PR | Last update |
@@ -112,6 +112,7 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 | FU-3 | Built-in mesh booleans are not volumetrically reliable | `src/Mod/Mesh/App/Core/SetOperations` | Open (found during P1.4) | For two trivial overlapping axis-aligned cubes, `MeshObject::unite`/`subtract` produce geometrically wrong, non-watertight results and volumes vary between runs (union came out 6.7 < a single cube's 8; only `intersect` had a plausible bbox). P1.4 therefore only smoke-tests the booleans. Needs a maintainer / possibly the GTS/OpenVDB backend. |
 | FU-4 | Legacy IFC importer broken against ifcopenshell 0.8 | `src/Mod/BIM/importers/importIFC.py` (+ `importIFCmulticore.py`) | Open (found during P2.2) | Both the single-core and multicore import paths set `ifcopenshell.geom.settings.USE_BREP_DATA`, which was removed in ifcopenshell 0.8 → `AttributeError`, so legacy IFC import fails entirely. P2.2 verifies the export via ifcopenshell instead of FreeCAD re-import. Needs the flag updated to the 0.8 API. |
 | FU-5 | Structure export to IFC2X3 uses an IFC4-only entity | `src/Mod/BIM/importers/exportIFC.py` | Open (found during P2.2) | Exporting an Arch Structure to IFC2X3 raises `IfcCartesianPointList3D not found in schema IFC2X3` (a tessellation entity that only exists in IFC4). P2.2's structure test is restricted to IFC4. Needs a SweptSolid/faceted fallback for IFC2X3. |
+| FU-6 | `Robot.Trajectory.deleteLast()` aborts the process | `src/Mod/Robot/App/Trajectory*` | Open (found during P3.4) | Calling `deleteLast()` on a `Robot.Trajectory` (even with a single inserted waypoint) aborts the interpreter with a native crash (SIGABRT, core dumped). `insertWaypoints`/`Length`/`Duration`/`position` are stable. P3.4 therefore does not exercise `deleteLast()`. Likely an out-of-bounds erase / bad iterator in the C++ removal path; needs a maintainer. |
 
 ### FU-2 — fixed (branch `fix/spreadsheet-gui-test`)
 Not a "stale test needing rewrite" — four concrete defects:
@@ -149,16 +150,19 @@ documented the remaining maintainer-level blockers.
 
 ## Current focus
 
-> **Phases 0, 1 and 2 are done and pushed.** Phase 0: P0.4/P0.5/P0.6 + P0.1 reclaim (P0.3 awaits a
+> **Phases 0, 1, 2 and 3 are done and pushed.** Phase 0: P0.4/P0.5/P0.6 + P0.1 reclaim (P0.3 awaits a
 > human workflow-scope push; P0.2 blocked by FU-1). Phase 1: four numeric-core suites (29 tests).
-> Phase 2: five data-exchange suites pushed (`test/exchange-step-iges-gltf`, `test/exchange-mesh-formats`,
-> `test/spreadsheet-csv-xlsx`, `test/draft-dxf-corpus`, `test/exchange-ifc-roundtrip`) — 27 new tests,
-> all green via `FreeCADCmd -t`.
+> Phase 2: five data-exchange suites (27 tests). Phase 3: four zero-coverage-module suites pushed
+> (`test/reverseeng-synthetic`, `test/measure-all-types`, `test/points-jt-parsers`,
+> `test/robot-inspection-logic`) — 30 new tests, all green via `FreeCADCmd -t` / `ctest`.
 > **Follow-up bugs:** FU-2 fixed; FU-1 partly fixed; FU-3 (mesh booleans), **FU-4** (legacy IFC import
-> broken on ifcopenshell 0.8) and **FU-5** (IFC2X3 structure export uses IFC4-only entity) found in P1/P2.
-> **Recommended next:** start **Phase 3** (zero-coverage modules: ReverseEngineering, Measure, Points,
-> Robot/Inspection). All Phase-1/2 branches still need a human review + upstream PR per the AI policy;
-> FU-1/FU-3/FU-4/FU-5 need the relevant maintainers.
+> broken on ifcopenshell 0.8), **FU-5** (IFC2X3 structure export uses IFC4-only entity) and **FU-6**
+> (`Robot.Trajectory.deleteLast()` native crash) found in P1/P2/P3.
+> **Recommended next:** **Phase 4** (GUI tests under xvfb + a coverage-measurement target) is the only
+> remaining roadmap phase. Within Phase 3, JtReader (BUILD off; parser entry `JtReader::readToc()` with
+> fixtures under `data/tests/Jt/`) and E57 import (reader only, no writer/fixture) are deliberately left
+> out and noted in the suites. All Phase-1/2/3 branches still need a human review + upstream PR per the
+> AI policy; FU-1/FU-3/FU-4/FU-5/FU-6 need the relevant maintainers.
 > **Action needed from a human:** push `ci/run-binding-generator-tests` after granting the `workflow`
 > OAuth scope (`gh auth refresh -h github.com -s workflow`), or apply that one-line workflow change via
 > the GitHub web UI.
@@ -168,6 +172,29 @@ documented the remaining maintainer-level blockers.
 ## Session Log
 
 Append newest entries at the top. Format: `### YYYY-MM-DD — <who>`.
+
+### 2026-06-22 — Phase 3 complete: zero-coverage modules (4 branches pushed)
+- **P3.1 ReverseEngineering** (`test/reverseeng-synthetic`): `TestReverseEngineering.py` (8 tests) drives
+  each algorithm with synthetic ground truth. `approxSurface`/`approxCurve` (OCC, always built) fit a
+  B-spline to a sampled plane/line and reproduce it; `normalEstimation`, `sampleConsensus` (plane +
+  sphere — recovers centre/radius exactly), `triangulate`, `regionGrowingSegmentation` (PCL-backed) are
+  guarded with `skipUnless` so the suite is portable to PCL-less builds. First-ever tests for the module.
+- **P3.2 Measure** (`test/measure-all-types`): C++ `MeasureTypes.cpp` (6 cases: area/length/radius/
+  diameter/angle/position) + `MassProperties.cpp` (volume 1000, surface 600, COG (5,5,5) via
+  `CalculateMassProperties`) extend `Measure_tests_run`; Python `TestMeasure.py` (9 tests) covers all 7
+  measurement document objects + the legacy `Measurement` helper. Ordering-sensitive expectations written
+  ordering-independent. All green via `pixi run ctest -R Measure` and `FreeCADCmd -t TestMeasure`.
+- **P3.3 Points** (`test/points-jt-parsers`): `TestPoints.py` (4 tests) — point-kernel API, ASCII
+  round-trip, and `PropertyPointKernel` FCStd save/restore. E57 is reader-only (no writer/fixture) and
+  JtReader is BUILD-off (parser entry `JtReader::readToc()`, fixtures under `data/tests/Jt/`) — both
+  scoped out and documented rather than faked.
+- **P3.4 Robot + Inspection** (`test/robot-inspection-logic`): `TestRobotApp.py` (7 tests) exercises the
+  default KUKA IR500 FK (home pose, +90° axis-1 swing), IK round-trips, and Waypoint/Trajectory math
+  headless; `TestInspectionApp.py` (3 tests) runs the distance-to-reference deviation compute (zero for
+  coincident boxes, 1 mm for a 1 mm-shifted nominal). **Found FU-6** (`Trajectory.deleteLast()` aborts
+  with a native crash) — documented, not exercised.
+- All verified with `FreeCADCmd -t <module>` / `pixi run ctest`. The refined plan
+  (`phase-3-zero-coverage-modules.md`) drove all four. Branches await human review + upstream PR.
 
 ### 2026-06-22 — Phase 2 complete: data-exchange round-trips (5 branches pushed)
 - **P2.1 STEP/IGES/glTF/BREP** (`test/exchange-step-iges-gltf`): headless `TestImportApp.py` (7 tests) —
