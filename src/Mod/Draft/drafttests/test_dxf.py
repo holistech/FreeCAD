@@ -35,6 +35,7 @@
 # @{
 
 import os
+import tempfile
 
 import FreeCAD as App
 import Draft
@@ -93,18 +94,90 @@ class DraftDXF(test_base.DraftTestCaseDoc):
             if doc:
                 App.closeDocument(doc.Name)
 
-    def test_export_dxf(self):
-        """Create some figures and export them to a DXF file."""
-        operation = "importDXF.export"
-        _msg("  Test '{}'".format(operation))
+    def _set_native_backend(self):
+        """Force the built-in C++ DXF importer/exporter (no download, headless)
+        and return a restore callback."""
+        hGrp = App.ParamGet("User parameter:BaseApp/Preferences/Mod/Draft")
+        saved = {
+            "dxfShowDialog": hGrp.GetBool("dxfShowDialog", True),
+            "dxfUseLegacyImporter": hGrp.GetBool("dxfUseLegacyImporter", False),
+            "dxfUseLegacyExporter": hGrp.GetBool("dxfUseLegacyExporter", False),
+            "dxfUseDraftVisGroups": hGrp.GetBool("dxfUseDraftVisGroups", True),
+            "DxfImportMode": hGrp.GetInt("DxfImportMode", 2),
+        }
+        hGrp.SetBool("dxfShowDialog", False)
+        hGrp.SetBool("dxfUseLegacyImporter", False)
+        hGrp.SetBool("dxfUseLegacyExporter", False)
+        hGrp.SetBool("dxfUseDraftVisGroups", True)
+        hGrp.SetInt("DxfImportMode", 2)
 
-        file = "Mod/Draft/drafttest/out_test.dxf"
-        out_file = os.path.join(App.getResourceDir(), file)
-        _msg("  file={}".format(out_file))
-        _msg("  exists={}".format(os.path.exists(out_file)))
+        def restore():
+            hGrp.SetBool("dxfShowDialog", saved["dxfShowDialog"])
+            hGrp.SetBool("dxfUseLegacyImporter", saved["dxfUseLegacyImporter"])
+            hGrp.SetBool("dxfUseLegacyExporter", saved["dxfUseLegacyExporter"])
+            hGrp.SetBool("dxfUseDraftVisGroups", saved["dxfUseDraftVisGroups"])
+            hGrp.SetInt("DxfImportMode", saved["DxfImportMode"])
 
-        obj = aux.fake_function(out_file)
-        self.assertTrue(obj, "'{}' failed".format(operation))
+        return restore
+
+    @staticmethod
+    def _edges(doc):
+        edges = []
+        for o in doc.Objects:
+            shape = getattr(o, "Shape", None)
+            if shape is not None and not shape.isNull():
+                edges.extend(shape.Edges)
+        return edges
+
+    def test_dxf_export_import_roundtrip(self):
+        """Export a line and a circle to DXF and re-import them, checking the
+        geometry survives the round-trip (replaces the old export stub)."""
+        import math
+
+        _msg("  Test 'DXF export/import round-trip'")
+        restore = self._set_native_backend()
+        out_file = os.path.join(tempfile.mkdtemp(prefix="fc_dxf_"), "roundtrip.dxf")
+        newdoc = None
+        try:
+            line = Draft.makeLine(App.Vector(0, 0, 0), App.Vector(10, 0, 0))
+            circle = Draft.makeCircle(5.0)
+            self.doc.recompute()
+            importDXF.export([line, circle], out_file)
+            self.assertGreater(os.path.getsize(out_file), 0, "DXF export produced an empty file")
+
+            newdoc = importDXF.open(out_file)
+            edges = self._edges(newdoc)
+            self.assertEqual(len(edges), 2, "expected one line edge and one circle edge")
+            lengths = sorted(e.Length for e in edges)
+            self.assertAlmostEqual(lengths[0], 10.0, delta=0.1)  # line segment
+            self.assertAlmostEqual(lengths[1], 2 * math.pi * 5.0, delta=0.5)  # circle perimeter
+        finally:
+            restore()
+            if newdoc:
+                App.closeDocument(newdoc.Name)
+
+    def test_dxf_polyline_roundtrip(self):
+        """A multi-segment open wire round-trips through DXF preserving its total
+        edge length."""
+        _msg("  Test 'DXF polyline round-trip'")
+        restore = self._set_native_backend()
+        out_file = os.path.join(tempfile.mkdtemp(prefix="fc_dxf_"), "wire.dxf")
+        newdoc = None
+        try:
+            pts = [App.Vector(0, 0, 0), App.Vector(10, 0, 0), App.Vector(10, 10, 0)]
+            wire = Draft.makeWire(pts, closed=False)
+            self.doc.recompute()
+            importDXF.export([wire], out_file)
+
+            newdoc = importDXF.open(out_file)
+            edges = self._edges(newdoc)
+            self.assertGreater(len(edges), 0, "polyline produced no edges")
+            total = sum(e.Length for e in edges)
+            self.assertAlmostEqual(total, 20.0, delta=0.2)  # 10 + 10
+        finally:
+            restore()
+            if newdoc:
+                App.closeDocument(newdoc.Name)
 
 
 ## @}
