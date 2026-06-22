@@ -37,7 +37,11 @@ def tryLoadingTest(testName):
     try:
         return unittest.defaultTestLoader.loadTestsFromName(testName)
 
-    except ImportError:
+    # Catch any error raised while importing/loading a registered test module, not just
+    # ImportError. A module that fails to load for any reason (e.g. a syntax or attribute
+    # error at import time) must surface as a reported test failure rather than aborting
+    # the construction of the whole suite, which would silently drop every other test.
+    except Exception as loadError:
 
         class LoadFailed(unittest.TestCase):
             def __init__(self, testName):
@@ -50,7 +54,7 @@ def tryLoadingTest(testName):
                 return "Loading " + self.testName
 
             def _runTest(self):
-                self.fail("Couldn't load " + self.testName)
+                self.fail("Couldn't load {}: {}".format(self.testName, loadError))
 
         return LoadFailed(testName)
 
