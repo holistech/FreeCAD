@@ -22,6 +22,7 @@
 # ***************************************************************************/
 
 import FreeCAD
+import os
 import sys
 import unittest
 
@@ -82,13 +83,53 @@ def PrintAll():
 
 def TestText(s):
     s = unittest.defaultTestLoader.loadTestsFromName(s)
-    r = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)
-    retval = r.run(s)
-    # Flushing to make sure the stream is written to the console
-    # before the wrapping process stops executing. Without this line
-    # executing the tests from command line did not show stats
-    # and proper traceback in some cases.
-    sys.stdout.flush()
+    # Some tests (or native components they exercise) can close or corrupt stdout
+    # (fd 1). Two failure modes follow from that, both guarded against here:
+    #   1. The runner writes its report to fd 1, so its next stream.flush() raises
+    #      "[Errno 9] Bad file descriptor" and aborts the whole run, silently skipping
+    #      every suite registered after the offending one.
+    #   2. A later test that simply print()s then fails with the same error, poisoned
+    #      by an earlier test that left fd 1 closed.
+    # We run the reporter on a private duplicate of fd 1, and restore fd 1 from that
+    # duplicate after every test so no test can poison the ones that follow.
+    try:
+        saved_fd = os.dup(1)
+    except OSError:
+        saved_fd = None
+
+    if saved_fd is None:
+        # Fall back to the previous behaviour if fd 1 cannot be duplicated.
+        r = unittest.TextTestRunner(stream=sys.stdout, verbosity=2)
+        retval = r.run(s)
+        sys.stdout.flush()
+        return retval
+
+    stream = os.fdopen(saved_fd, "w", closefd=True)
+
+    def _restore_fd1():
+        try:
+            os.dup2(saved_fd, 1)
+        except OSError:
+            pass
+
+    class _Fd1RestoringResult(unittest.TextTestResult):
+        def stopTest(self, test):
+            super().stopTest(test)
+            _restore_fd1()
+
+    try:
+        r = unittest.TextTestRunner(
+            stream=stream, verbosity=2, resultclass=_Fd1RestoringResult
+        )
+        retval = r.run(s)
+        # Flushing to make sure the stream is written to the console
+        # before the wrapping process stops executing. Without this line
+        # executing the tests from command line did not show stats
+        # and proper traceback in some cases.
+        stream.flush()
+    finally:
+        _restore_fd1()
+        stream.close()
     return retval
 
 
