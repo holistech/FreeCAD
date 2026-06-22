@@ -34,6 +34,10 @@ Conventions (apply to all roadmap work):
 - Verify before marking `Done`: see each phase plan's verification section. Minimum bar:
   `pixi run test` (C++) green **and** the relevant `FreeCADCmd -t <module>` green, and the full
   `FreeCADCmd -t 0` still completes.
+- **Always run ctest via `pixi run ctest …`** (or `pixi run test`), never the bare system `ctest`.
+  The build is configured with conda's CMake 4.2, whose generated GoogleTest includes require CMake
+  ≥3.30; the system `ctest` (3.28) fails with "CMake 3.30 or higher is required". After changing
+  `tests/CMakeLists.txt` you must `pixi run configure` (reconfigure), not just `pixi run build`.
 - Never commit `test-coverage-report/` or `CLAUDE.md` inside a code-fix branch unless that is the
   branch's explicit purpose.
 
@@ -43,7 +47,7 @@ Conventions (apply to all roadmap work):
 
 | Phase | Theme | Plan | Status | Notes |
 |------|-------|------|--------|-------|
-| 0 | Reclaim dead tests & make CI trustworthy | [phase-0](phase-0-reclaim-and-ci.md) | In progress | P0.5 done; P0.1 (partial) + P0.3 pushed; P0.4/P0.6 next |
+| 0 | Reclaim dead tests & make CI trustworthy | [phase-0](phase-0-reclaim-and-ci.md) | In progress | P0.3–P0.6 done; P0.1 partial; only P0.2 + P0.1 remainder left |
 | 1 | De-risk numerical/geometry cores | [phase-1](phase-1-numeric-cores.md) | Not started | PlaneGCS, HLR, Assembly solver, Mesh repair |
 | 2 | Data-exchange round-trips | [phase-2](phase-2-data-exchange.md) | Not started | STEP/IGES/glTF, IFC, mesh, CSV/XLSX, DXF |
 | 3 | Fill zero-coverage modules | [phase-3](phase-3-zero-coverage-modules.md) | Not started | ReverseEngineering, Measure, Points, Robot/Inspection |
@@ -61,9 +65,9 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 | P0.1 | Register/re-enable dormant test suites | In progress | `test/reclaim-dead-suites` (pushed) | 2026-06-22 |
 | P0.2 | Offline IFC fixture + re-enable NativeIFC self-test | Not started | — | 2026-06-22 |
 | P0.3 | CI discovery includes `src/Tools/bindings/tests/` | In review | `ci/run-binding-generator-tests` (local; push needs `workflow` OAuth scope) | 2026-06-22 |
-| P0.4 | Wire Python suites into ctest | Not started | — | 2026-06-22 |
+| P0.4 | Wire Python suites into ctest | Done | `test/wire-python-into-ctest` (pushed; based on P0.5) | 2026-06-22 |
 | P0.5 | Runner-wide fd/teardown guard | Done | `test/runner-fd-guard` (pushed) | 2026-06-22 |
-| P0.6 | Fail CI on import-failed registered modules | Not started | — | 2026-06-22 |
+| P0.6 | Fail CI on import-failed registered modules | Done | `test/wire-python-into-ctest` (pushed) | 2026-06-22 |
 
 ### Phase 1 — Numerical / geometry cores
 | ID | Task | Status | Branch/PR | Last update |
@@ -101,9 +105,10 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 
 ## Current focus
 
-> P0.3, P0.5 done and pushed; P0.1 first wave pushed. Next: **P0.4** (wire Python suites into ctest)
-> and **P0.6** (fail CI on import-failed modules), then finish P0.1's remaining dormant suites
-> (GUI tests need xvfb → couple with P4.3; Draft commented importers need data; FEM `function_tests`).
+> P0.3–P0.6 done and pushed; P0.1 first wave pushed. Phase 0 is largely complete. Remaining:
+> **P0.2** (offline IFC fixture) and the **P0.1 remainder** — GUI-side dormant suites
+> (`TestTreeSelection`, Material GUI, `TestSpreadsheetGui`) need an xvfb run → couple with **P4.3**;
+> Draft commented importers need data; FEM `function_tests`. Then Phase 1 (PlaneGCS etc.).
 > **Action needed from a human:** push `ci/run-binding-generator-tests` after granting the `workflow`
 > OAuth scope (`gh auth refresh -h github.com -s workflow`), or apply that one-line workflow change via
 > the GitHub web UI.
@@ -113,6 +118,18 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 ## Session Log
 
 Append newest entries at the top. Format: `### YYYY-MM-DD — <who>`.
+
+### 2026-06-22 — P0.4 + P0.6 done (Python in ctest)
+- **P0.4 done** (`test/wire-python-into-ctest`, pushed; branched on top of `test/runner-fd-guard` so
+  the suite is fd-robust): added a `Python_unittests` ctest entry running `FreeCADCmd -t 0`
+  (label "Python", TIMEOUT 1800) in `tests/CMakeLists.txt`. Verified: `pixi run ctest -R
+  Python_unittests` → Passed in 145s, rc=0.
+- **P0.6 done** (same branch): `tryLoadingTest` now catches any load exception (not only
+  `ImportError`) and reports it as a failing test, so a broken registered module can't abort suite
+  construction.
+- **Gotcha recorded** (now in Conventions): ctest must be run via `pixi run ctest`; the bare system
+  ctest 3.28 fails on conda-CMake-4.2-generated GoogleTest includes ("CMake 3.30 or higher
+  required"). Reconfigure with `pixi run configure` after editing `tests/CMakeLists.txt`.
 
 ### 2026-06-22 — P0.5 done (runner fd-guard)
 - **P0.5 done** (`test/runner-fd-guard`, pushed): `src/Mod/Test/TestApp.py` `TestText` now runs the
