@@ -10,6 +10,7 @@ set(Robot_Scripts
     KukaExporter.py
     RobotExample.py
     RobotExampleTrajectoryOutOfShapes.py
+    TestRobotApp.py
 )
 
 if(BUILD_GUI)
