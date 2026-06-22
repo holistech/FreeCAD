@@ -7,6 +7,7 @@ endif(BUILD_GUI)
 
 set(Points_Scripts
     Init.py
+    TestPoints.py
 )
 
 if(BUILD_GUI)
@@ -24,6 +25,7 @@ SET(PointsCommands_SRCS
 
 SET(PointsAllScripts
     ${PointsCommands_SRCS}
+    TestPoints.py
 )
 
 ADD_CUSTOM_TARGET(PointsScripts ALL
