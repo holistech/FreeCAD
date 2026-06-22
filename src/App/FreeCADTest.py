@@ -52,10 +52,38 @@ Log("░░░▀█▀░█▀█░▀█▀░▀█▀░░░▀█▀░
 Log("░░░░█░░█░█░░█░░░█░░░░░█░░█▀░░▀▀█░░█░░▀▀█░░░\n")
 Log("░░░▀▀▀░▀░▀░▀▀▀░░▀░░░░░▀░░▀▀▀░▀▀▀░░▀░░▀▀▀░░░\n")
 
+import os
 import sys
 import TestApp
 
+# Optional Python line-coverage measurement of the embedded test run. Enabled
+# only when FREECAD_PYTHON_COVERAGE is set, so the normal test run is unaffected
+# and the 'coverage' package stays an optional dependency.
+_cov = None
+if os.environ.get("FREECAD_PYTHON_COVERAGE"):
+    try:
+        import coverage
+
+        _cov = coverage.Coverage(data_file=os.environ.get("COVERAGE_FILE") or ".coverage")
+        _cov.start()
+        Log("Python coverage measurement enabled\n")
+    except ImportError:
+        Log("FREECAD_PYTHON_COVERAGE set but the 'coverage' package is not installed\n")
+
 testResult = TestApp.RunConfiguredTextTest()
+
+if _cov is not None:
+    import io
+
+    _cov.stop()
+    _cov.save()
+    Log("Python coverage data saved to {}\n".format(_cov.config.data_file))
+    try:
+        # Suppress the per-file table; surface only the headline percentage.
+        total = _cov.report(file=io.StringIO())
+        Log("Total Python line coverage: {:.2f}%\n".format(total))
+    except Exception as exc:  # noqa: BLE001 - reporting must never fail the run
+        Log("Python coverage report failed: {}\n".format(exc))
 
 Log("FreeCAD test done\n")
 

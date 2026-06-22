@@ -83,6 +83,12 @@ mark_as_advanced(
         FREECAD_USE_SANITIZER_MSAN
 )
 
+# Code coverage support (GCC/Clang only)
+if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    option(FREECAD_COVERAGE "Enable code coverage instrumentation (--coverage)" OFF)
+    mark_as_advanced(FREECAD_COVERAGE)
+endif()
+
 # include local modules
 include(CheckCXXCompilerFlag)
 include(AddFileDependencies)
@@ -101,6 +107,7 @@ SetupDoxygen()
 SetupJSON()
 SetupKDTree()
 SetupSanitizers()
+SetupCoverage()
 SetupYamlCpp()
 SetupZipIos()
 SetupClipper2()
