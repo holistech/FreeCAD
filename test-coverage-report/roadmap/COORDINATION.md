@@ -105,12 +105,42 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 
 ## Follow-up bugs found (not reclaim work — real defects to fix separately)
 
-| ID | Bug | Where | Notes |
-|----|-----|-------|-------|
-| FU-1 | NativeIFC self-test hangs in a recursive document-recompute loop | `src/Mod/BIM/nativeifc/ifc_selftest.py` | blocks P0.2; "Recursive calling of recompute for document IfcTest" repeats indefinitely. Test is offline-ready (embedded IFC); only the recompute loop blocks enabling it. |
-| FU-2 | `TestSpreadsheetGui` hangs headless (and was never installed) | `src/Mod/Spreadsheet/TestSpreadsheetGui.py` | times out under `xvfb-run FreeCAD -t`; raises a cell-name/SelectionFlags arg error then never completes. Also missing from the module CMakeLists (not copied to the build). Likely a stale GUI test needing a rewrite. |
+| ID | Bug | Where | Status | Notes |
+|----|-----|-------|--------|-------|
+| FU-1 | NativeIFC self-test: multiple defects + GUI-runner hang | `src/Mod/BIM/nativeifc/` | **Partly fixed** (`fix/nativeifc-selftest-bugs`, pushed) | 4 genuine bugs fixed (below). Suite **not yet enableable**: 2 stale assertions + a systemic GUI hang remain. |
+| FU-2 | `TestSpreadsheetGui` hung headless, errored on args, never installed | `src/Mod/Spreadsheet/` | **Fixed & enabled** (`fix/spreadsheet-gui-test`, pushed) | Now green under `xvfb-run FreeCAD -t TestSpreadsheetGui`; wired into CMakeLists + GUI `__unit_test__`. |
 
-These came from the P0.1/P0.2 reclaim attempt; they are genuine bugs, out of scope for "reclaim", and should each get their own fix branch (Phase-1-style).
+### FU-2 — fixed (branch `fix/spreadsheet-gui-test`)
+Not a "stale test needing rewrite" — four concrete defects:
+- File missing from the module `CMakeLists.txt` → never copied to the build → dead.
+- `view.select()` takes the selection flags as a plain int, but since the Qt6/PySide6 migration
+  `QItemSelectionModel.SelectCurrent` is an enum that no longer converts to int → `TypeError`. Pass `.value`.
+- Copy/paste went through `runCommand("Std_Copy"/"Std_Paste")`, which is **not routed to the spreadsheet
+  view** in headless runs → clipboard stayed empty. Use `SendMsgToActiveView("Copy"/"Paste")` (verified:
+  routes to the active view, clipboard gets `'1'`).
+- `tearDown` never closed the document → the open MDI view kept the event loop alive → runner hung.
+
+### FU-1 — partly fixed (branch `fix/nativeifc-selftest-bugs`)
+Fixed (verified; `TestArch` still 273 OK, no regression):
+- `ifc_materials.load_materials()`: `for child in group` → `obj.Group` (was an outright `NameError`).
+- `ifc_tools.recompute()`: guard `c.touch()` against already-deleted objects (deferred QTimer callbacks).
+- `ifc_status.on_activate()/set_menu()`: return early when `not FreeCAD.GuiUp` (GUI-only API was crashing
+  the observer in console/test mode).
+- `ifc_selftest.tearDown`: remove the document observer left installed by `test12` and drain pending
+  deferred callbacks before closing the document.
+Result: in **console** mode the suite now runs to completion (was aborting); in **GUI** mode all 20 tests
+now execute (was hanging immediately).
+**Still blocking enablement (needs a NativeIFC maintainer / deeper work — NOT auto-fixed):**
+- **GUI-runner hang**: after the tests finish, deferred `QtCore.QTimer` callbacks (ArchSite sun position,
+  view-provider icons, `onDocumentRestored` recompute) fire on torn-down documents and a ~1 s recompute
+  loop keeps the event loop alive forever. Systemic across Arch/NativeIFC; risky to fix blindly.
+- **`test09_CreateBIMObjects`**: asserts `ifco == 12` but the code now creates **14** `IfcRoot` entities —
+  a stale count. Left unchanged: a maintainer must confirm whether 14 is correct or an over-creation bug.
+- **`test11_ChangeGeometry`**: assumes `IfcObject004` is a plain extrusion and reads `ExtrusionDepth`,
+  which `add_geom_properties` only adds for `IfcExtrudedAreaSolid`; the picked object isn't one. Data-dependent.
+
+These came from the P0.1/P0.2 reclaim attempt; FU-2 is done, FU-1 delivered the safe bug fixes and
+documented the remaining maintainer-level blockers.
 
 ---
 
@@ -118,8 +148,11 @@ These came from the P0.1/P0.2 reclaim attempt; they are genuine bugs, out of sco
 
 > **Phase 0 is effectively complete for everything achievable now.** Done & pushed: P0.4, P0.5, P0.6,
 > P0.1 (all reclaimable suites). P0.3 is implemented but **awaits a human push** (workflow scope).
-> P0.2 is **blocked by FU-1** (a real NativeIFC bug), not by missing fixtures.
-> **Recommended next:** start **Phase 1** (P1.1 PlaneGCS), or opportunistically fix FU-1/FU-2.
+> **Follow-up bugs:** FU-2 **fixed & enabled** (`fix/spreadsheet-gui-test`). FU-1 **partly fixed**
+> (`fix/nativeifc-selftest-bugs`: 4 real bugs) — P0.2 still blocked by a systemic GUI-runner hang + 2
+> stale assertions that need a NativeIFC maintainer.
+> **Recommended next:** start **Phase 1** (P1.1 PlaneGCS); raise the FU-1 GUI-hang / stale assertions
+> with a NativeIFC maintainer (or upstream) since they need domain judgement.
 > **Action needed from a human:** push `ci/run-binding-generator-tests` after granting the `workflow`
 > OAuth scope (`gh auth refresh -h github.com -s workflow`), or apply that one-line workflow change via
 > the GitHub web UI.
@@ -129,6 +162,20 @@ These came from the P0.1/P0.2 reclaim attempt; they are genuine bugs, out of sco
 ## Session Log
 
 Append newest entries at the top. Format: `### YYYY-MM-DD — <who>`.
+
+### 2026-06-22 — FU-1 + FU-2 fixes (`fix/nativeifc-selftest-bugs`, `fix/spreadsheet-gui-test`, pushed)
+- **FU-2 fully fixed & enabled.** Diagnosed it was not a "stale rewrite" but four concrete defects
+  (missing from CMakeLists; PySide6 enum-not-int `TypeError`; `Std_Copy`/`Std_Paste` not routed to the
+  view headless — replaced with `SendMsgToActiveView`; `tearDown` never closed the doc → hang). Wired
+  into CMakeLists + GUI `__unit_test__`. Verified green under xvfb. Branch pushed.
+- **FU-1 partly fixed.** Found & fixed 4 genuine bugs (materials `group` NameError; `recompute()`
+  deleted-object guard; `ifc_status` `GuiUp` guards; `ifc_selftest.tearDown` observer cleanup). Console
+  run now completes; GUI run executes all 20 tests instead of hanging immediately. `TestArch` still
+  273 OK (no regression). Branch pushed.
+- **FU-1 not closed:** enabling the suite is still blocked by a systemic deferred-`QTimer` GUI hang
+  (post-teardown callbacks on deleted objects + ~1 s recompute loop) and two stale assertions
+  (`test09` count 14≠12, `test11` extrusion). Deliberately **not** masked — flagged for a NativeIFC
+  maintainer. Details in the Follow-up bugs section above.
 
 ### 2026-06-22 — P0.1 GUI reclaim + P0.2 investigation (`test/reclaim-gui-and-ifc`, pushed)
 - Verified the dormant GUI suites under xvfb (`xvfb-run FreeCAD -t <module>`):
