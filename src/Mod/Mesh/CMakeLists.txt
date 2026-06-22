@@ -10,6 +10,7 @@ set(Mesh_Scripts
     BuildRegularGeoms.py
     MeshEnums.py
     App/MeshTestsApp.py
+    App/MeshFormatTests.py
 )
 
 set(MeshTestDataFiles
