@@ -47,7 +47,7 @@ Conventions (apply to all roadmap work):
 
 | Phase | Theme | Plan | Status | Notes |
 |------|-------|------|--------|-------|
-| 0 | Reclaim dead tests & make CI trustworthy | [phase-0](phase-0-reclaim-and-ci.md) | In progress | P0.3–P0.6 done; P0.1 partial; only P0.2 + P0.1 remainder left |
+| 0 | Reclaim dead tests & make CI trustworthy | [phase-0](phase-0-reclaim-and-ci.md) | Largely done | P0.4–P0.6 done; P0.1 reclaimed; P0.3 awaits human push; P0.2 blocked by a bug (FU-1) |
 | 1 | De-risk numerical/geometry cores | [phase-1](phase-1-numeric-cores.md) | Not started | PlaneGCS, HLR, Assembly solver, Mesh repair |
 | 2 | Data-exchange round-trips | [phase-2](phase-2-data-exchange.md) | Not started | STEP/IGES/glTF, IFC, mesh, CSV/XLSX, DXF |
 | 3 | Fill zero-coverage modules | [phase-3](phase-3-zero-coverage-modules.md) | Not started | ReverseEngineering, Measure, Points, Robot/Inspection |
@@ -62,8 +62,8 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 ### Phase 0 — Reclaim & CI
 | ID | Task | Status | Branch/PR | Last update |
 |----|------|--------|-----------|-------------|
-| P0.1 | Register/re-enable dormant test suites | In progress | `test/reclaim-dead-suites` (pushed) | 2026-06-22 |
-| P0.2 | Offline IFC fixture + re-enable NativeIFC self-test | Not started | — | 2026-06-22 |
+| P0.1 | Register/re-enable dormant test suites | Done (reclaimable parts) | `test/reclaim-dead-suites` + `test/reclaim-gui-and-ifc` (pushed) | 2026-06-22 |
+| P0.2 | Offline IFC fixture + re-enable NativeIFC self-test | Blocked | needs NativeIFC recompute-hang fixed first (FU-1) | 2026-06-22 |
 | P0.3 | CI discovery includes `src/Tools/bindings/tests/` | In review | `ci/run-binding-generator-tests` (local; push needs `workflow` OAuth scope) | 2026-06-22 |
 | P0.4 | Wire Python suites into ctest | Done | `test/wire-python-into-ctest` (pushed; based on P0.5) | 2026-06-22 |
 | P0.5 | Runner-wide fd/teardown guard | Done | `test/runner-fd-guard` (pushed) | 2026-06-22 |
@@ -103,12 +103,23 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 
 ---
 
+## Follow-up bugs found (not reclaim work — real defects to fix separately)
+
+| ID | Bug | Where | Notes |
+|----|-----|-------|-------|
+| FU-1 | NativeIFC self-test hangs in a recursive document-recompute loop | `src/Mod/BIM/nativeifc/ifc_selftest.py` | blocks P0.2; "Recursive calling of recompute for document IfcTest" repeats indefinitely. Test is offline-ready (embedded IFC); only the recompute loop blocks enabling it. |
+| FU-2 | `TestSpreadsheetGui` hangs headless (and was never installed) | `src/Mod/Spreadsheet/TestSpreadsheetGui.py` | times out under `xvfb-run FreeCAD -t`; raises a cell-name/SelectionFlags arg error then never completes. Also missing from the module CMakeLists (not copied to the build). Likely a stale GUI test needing a rewrite. |
+
+These came from the P0.1/P0.2 reclaim attempt; they are genuine bugs, out of scope for "reclaim", and should each get their own fix branch (Phase-1-style).
+
+---
+
 ## Current focus
 
-> P0.3–P0.6 done and pushed; P0.1 first wave pushed. Phase 0 is largely complete. Remaining:
-> **P0.2** (offline IFC fixture) and the **P0.1 remainder** — GUI-side dormant suites
-> (`TestTreeSelection`, Material GUI, `TestSpreadsheetGui`) need an xvfb run → couple with **P4.3**;
-> Draft commented importers need data; FEM `function_tests`. Then Phase 1 (PlaneGCS etc.).
+> **Phase 0 is effectively complete for everything achievable now.** Done & pushed: P0.4, P0.5, P0.6,
+> P0.1 (all reclaimable suites). P0.3 is implemented but **awaits a human push** (workflow scope).
+> P0.2 is **blocked by FU-1** (a real NativeIFC bug), not by missing fixtures.
+> **Recommended next:** start **Phase 1** (P1.1 PlaneGCS), or opportunistically fix FU-1/FU-2.
 > **Action needed from a human:** push `ci/run-binding-generator-tests` after granting the `workflow`
 > OAuth scope (`gh auth refresh -h github.com -s workflow`), or apply that one-line workflow change via
 > the GitHub web UI.
@@ -118,6 +129,18 @@ Status legend above. `Branch/PR` holds the branch name and/or PR link once it ex
 ## Session Log
 
 Append newest entries at the top. Format: `### YYYY-MM-DD — <who>`.
+
+### 2026-06-22 — P0.1 GUI reclaim + P0.2 investigation (`test/reclaim-gui-and-ifc`, pushed)
+- Verified the dormant GUI suites under xvfb (`xvfb-run FreeCAD -t <module>`):
+  - **TestTreeSelection**: 3 tests OK → registered in `src/Mod/Test/InitGui.py`.
+  - **TestSpreadsheetGui**: hangs/timeouts headless and was also missing from the Spreadsheet
+    CMakeLists (never copied to the build). Reverted the registration + CMake change; logged as FU-2.
+  - Material GUI (`TestMaterialsGui`) is **already registered** — the original report was wrong; no action.
+- **P0.2**: discovered the NativeIFC self-test needs **no network** (embedded `IFCFILECONTENT`); the
+  real blocker is a recursive-recompute hang (FU-1). Corrected the misleading "requires internet"
+  comment in `src/Mod/BIM/InitGui.py`; kept the test disabled.
+- Net: Phase 0 reclaim is done for everything that actually runs; two genuine bugs (FU-1, FU-2) are
+  logged for separate fixes.
 
 ### 2026-06-22 — P0.4 + P0.6 done (Python in ctest)
 - **P0.4 done** (`test/wire-python-into-ctest`, pushed; branched on top of `test/runner-fd-guard` so
