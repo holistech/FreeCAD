@@ -52,3 +52,6 @@ Gui.addWorkbench(SpreadsheetWorkbench())
 
 # Append the open handler
 FreeCAD.addImportType("Spreadsheet formats (*.csv *.CSV)", "SpreadsheetGui")
+
+# GUI-only self test (needs an active spreadsheet MDI view)
+FreeCAD.__unit_test__ += ["TestSpreadsheetGui"]
