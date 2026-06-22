@@ -24,6 +24,7 @@
 """Unit tests for the ToolBitEditorWidget."""
 
 import unittest
+import FreeCAD
 from unittest.mock import MagicMock
 from Path.Tool.toolbit.ui.editor import ToolBitPropertiesWidget
 from Path.Tool.toolbit.models.base import ToolBit
@@ -32,6 +33,7 @@ from Path.Tool.docobject.ui.property import BasePropertyEditorWidget
 from .PathTestUtils import PathTestWithAssets
 
 
+@unittest.skipIf(not FreeCAD.GuiUp, "GUI tests require FreeCAD GUI mode")
 class TestToolBitPropertiesWidget(PathTestWithAssets):
     """Tests for ToolBitEditorWidget using real assets and widgets."""
 
