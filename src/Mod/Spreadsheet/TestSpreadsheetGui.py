@@ -41,8 +41,7 @@ class SpreadsheetGuiCases(unittest.TestCase):
         return self.view_provider.getView()
 
     def tearDown(self):
-        pass
-        # FreeCAD.closeDocument(self.doc.Name)
+        FreeCAD.closeDocument(self.doc.Name)
 
     def injectSimpleData(self):
         """A utility function to initialize a blank sheet with some known data"""
@@ -69,11 +68,24 @@ class SpreadsheetGuiCases(unittest.TestCase):
         self.injectSimpleData()
         self.view_provider.doubleClicked()
         view = self.getTableView()
-        view.select("A1", QtCore.QItemSelectionModel.SelectCurrent)
+        # Give the freshly opened spreadsheet MDI view an event cycle so it
+        # becomes the active view; the copy/paste messages below are dispatched
+        # to the active view.
+        QtCore.QCoreApplication.processEvents()
+        # The select() binding expects the selection flags as a plain integer.
+        # Since the Qt6/PySide6 migration the QItemSelectionModel flags are
+        # proper enum objects that no longer implicitly convert to int, so we
+        # take their integer .value explicitly.
+        select_current = QtCore.QItemSelectionModel.SelectCurrent.value
+        view.select("A1", select_current)
         view.setCurrentIndex("A1")
-        FreeCAD.Gui.runCommand("Std_Copy", 0)
-        view.select("E5", QtCore.QItemSelectionModel.SelectCurrent)
+        # Use SendMsgToActiveView rather than runCommand("Std_Copy"): the global
+        # Std_Copy/Std_Paste commands are not routed to the spreadsheet view in
+        # headless test runs, whereas the view's own Copy/Paste message handler
+        # performs the cell clipboard operation directly.
+        FreeCAD.Gui.SendMsgToActiveView("Copy")
+        view.select("E5", select_current)
         view.setCurrentIndex("E5")
-        FreeCAD.Gui.runCommand("Std_Paste", 0)
+        FreeCAD.Gui.SendMsgToActiveView("Paste")
         self.doc.recompute()
         self.assertEqual(self.sheet.get("A1"), self.sheet.get("E5"))
