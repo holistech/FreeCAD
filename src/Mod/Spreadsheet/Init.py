@@ -41,3 +41,4 @@ App.addImportType("Excel spreadsheet (*.xlsx *.XLSX)", "importXLSX")
 
 App.__unit_test__ += ["TestSpreadsheet"]
 App.__unit_test__ += ["test_importXLSX"]
+App.__unit_test__ += ["TestSpreadsheetExchange"]
