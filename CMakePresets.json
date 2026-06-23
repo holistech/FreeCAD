@@ -259,6 +259,22 @@
         ]
       },
       {
+        "name": "conda-linux-coverage",
+        "displayName": "Conda Coverage",
+        "description": "Conda debug profile with code coverage instrumentation",
+        "binaryDir": "${sourceDir}/build/coverage",
+        "inherits": [
+          "conda-debug",
+          "conda-linux"
+        ],
+        "cacheVariables": {
+          "FREECAD_COVERAGE": {
+            "type": "BOOL",
+            "value": "ON"
+          }
+        }
+      },
+      {
         "name": "conda-macos-debug",
         "displayName": "Conda Debug",
         "description": "Conda debug profile",

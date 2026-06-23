@@ -15,6 +15,7 @@ cmake = "*"
 coin3d = "*"
 compilers = ">=1.10,<1.11"
 conda-devenv = "*"
+coverage = "*"
 debugpy = "*"
 defusedxml = "*"
 docutils = "*"
@@ -22,6 +23,7 @@ doxygen = "*"
 eigen = ">=3.3,<5"
 fmt = "*"
 freetype = "*"
+gcovr = "*"
 git = "*"
 graphviz = "*"
 gtest= "*"
@@ -162,10 +164,12 @@ freecad-stubs = "*"
 [target.linux-64.tasks]
 configure-debug = { cmd = [ "cmake", "--preset", "conda-linux-debug", "{{ extra_args }}" ], args = [{ "arg" ="extra_args", "default" = "" }], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
 configure-release = { cmd = [ "cmake", "--preset", "conda-linux-release" ], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
+configure-coverage = { cmd = [ "cmake", "--preset", "conda-linux-coverage", "{{ extra_args }}" ], args = [{ "arg" = "extra_args", "default" = "" }], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
 
 [target.linux-aarch64.tasks]
 configure-debug = { cmd = [ "cmake", "--preset", "conda-linux-debug", "{{ extra_args }}" ], args = [{ "arg" = "extra_args", "default" = "" }], depends-on= ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
 configure-release = { cmd = [ "cmake", "--preset", "conda-linux-release" ], depends-on= ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
+configure-coverage = { cmd = [ "cmake", "--preset", "conda-linux-coverage", "{{ extra_args }}" ], args = [{ "arg" = "extra_args", "default" = "" }], depends-on= ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
 
 [target.osx-64.tasks]
 configure-debug = { cmd = [ "cmake", "--preset", "conda-macos-debug", "{{ extra_args }}" ], args = [{ "arg" = "extra_args", "default" = "" }], depends-on = ["initialize"], env={ CFLAGS="", CXXFLAGS="", DEBUG_CFLAGS="", DEBUG_CXXFLAGS="" }}
@@ -198,3 +202,13 @@ test-debug = { cmd = ["ctest", "--test-dir", "build/debug"]}
 test-release = { cmd = ["ctest", "--test-dir", "build/release"]}
 freecad-debug = "build/debug/bin/FreeCAD"
 freecad-release = "build/release/bin/FreeCAD"
+
+# Code coverage (Linux/Clang). configure-coverage is defined per Linux target.
+build-coverage = { cmd = ["cmake", "--build", "build/coverage"]}
+install-coverage = { cmd = ["cmake", "--install", "build/coverage"]}
+test-coverage = { cmd = ["ctest", "--test-dir", "build/coverage"]}
+# C++ line coverage: aggregate the .gcda emitted by the instrumented suites.
+# llvm-cov is used because the conda toolchain is Clang; drop --gcov-executable for GCC.
+coverage-cpp = { cmd = ["gcovr", "--root", ".", "--gcov-executable", "llvm-cov gcov", "--exclude", "build/", "--exclude", ".*/tests/.*", "--print-summary", "--xml", "build/coverage/coverage-cpp.xml", "--html-details", "build/coverage/html/index.html", "build/coverage"]}
+# Python line coverage of the embedded test run (no instrumented rebuild needed).
+coverage-python = { cmd = ["build/debug/bin/FreeCADCmd", "-t", "0"], env = { FREECAD_PYTHON_COVERAGE = "1", COVERAGE_FILE = "build/coverage/.coverage" }}
