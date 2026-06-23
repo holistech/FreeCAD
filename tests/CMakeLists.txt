@@ -145,3 +145,18 @@ foreach (exe ${TestExecutables})
         gtest_discover_tests(${exe})
     endif()
 endforeach()
+
+# Run the Python unittest suites through ctest as well, so a green `ctest` reflects
+# both the C++ and the Python test layers. Previously only the C++ tests were wired
+# into ctest, so `ctest` passing did not mean the Python suites (the bulk of the
+# functional tests) had run. FreeCADCmd -t 0 runs every module registered in
+# FreeCAD.__unit_test__ and exits non-zero on any failure. The "Python" label lets
+# developers skip it locally with `ctest -LE Python`.
+if(TARGET FreeCADMainCmd)
+    add_test(NAME Python_unittests COMMAND $<TARGET_FILE:FreeCADMainCmd> -t 0)
+    set_tests_properties(Python_unittests PROPERTIES LABELS "Python" TIMEOUT 1800)
+    if(WIN32)
+        set_tests_properties(Python_unittests PROPERTIES
+            ENVIRONMENT_MODIFICATION "${_test_env_mod}")
+    endif()
+endif()
