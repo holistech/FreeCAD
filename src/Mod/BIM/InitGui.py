@@ -849,5 +849,9 @@ FreeCADGui.addPreferencePage(":/ui/preferences-webgl.ui", t)
 
 # Add unit tests
 FreeCAD.__unit_test__ += ["TestArchGui"]
-# The NativeIFC tests require internet connection and file download
+# The NativeIFC self-test is self-contained (it writes the embedded IFCFILECONTENT
+# from ifc_selftest.py to a temp file, so it needs no network -- contrary to the old
+# note here). It is still disabled because it currently hangs in a recursive document
+# recompute loop ("Recursive calling of recompute for document IfcTest"); re-enable it
+# once that underlying NativeIFC recompute issue is fixed.
 # FreeCAD.__unit_test__ += ["nativeifc.ifc_selftest"]

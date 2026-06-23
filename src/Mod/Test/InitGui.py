@@ -102,4 +102,5 @@ FreeCAD.__unit_test__ += [
     "TestCoinSelectionVisual",
     "TestCoinNodeSnapshots",
     "TestViewProviderLink",
+    "TestTreeSelection",
 ]
