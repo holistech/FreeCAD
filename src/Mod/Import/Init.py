@@ -41,3 +41,6 @@ FreeCAD.addTranslatableExportType(
     translate("FileFormat", "STEPZ (Zipped STEP)"), ["stpZ", "stpz"], "stepZ"
 )
 FreeCAD.addExportType("glTF (*.gltf *.glb)", "ImportGui")
+
+# Headless import/export round-trip self tests
+FreeCAD.__unit_test__ += ["TestImportApp"]
