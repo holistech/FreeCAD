@@ -35,7 +35,17 @@ from . import support_utils as testtools
 from .support_utils import fcc_print
 from .support_utils import get_namefromdef
 
+# Writing Mystran (Nastran BDF) solver input requires the optional pyNastran package.
+# Without it the writer produces no input file, so skip these tests instead of erroring.
+try:
+    import pyNastran  # noqa: F401
 
+    _HAS_PYNASTRAN = True
+except ImportError:
+    _HAS_PYNASTRAN = False
+
+
+@unittest.skipUnless(_HAS_PYNASTRAN, "pyNastran not installed; Mystran input writing unavailable")
 class TestSolverMystran(unittest.TestCase):
     fcc_print("import TestSolverMystran")
 
