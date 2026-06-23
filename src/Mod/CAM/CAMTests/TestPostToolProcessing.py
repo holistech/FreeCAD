@@ -25,7 +25,7 @@ import Constants
 import Path
 import unittest
 from Path.Post.Processor import PostProcessor
-from Machine.models.machine import Machine
+from Machine.models.machine import Machine, OutputUnits
 import Path.Tool.Controller as PathToolController
 from Path.Tool.toolbit import ToolBit
 import Path.Main.Job as PathJob
@@ -587,6 +587,9 @@ class TestEmptyMoveSuppression(unittest.TestCase):
             "P",
         ]
         self.processor.values["OUTPUT_DOUBLES"] = True
+        # No machine is mapped for this processor, so OUTPUT_UNITS is not populated
+        # automatically; set it explicitly so axis-parameter formatting can resolve units.
+        self.processor.values["OUTPUT_UNITS"] = OutputUnits.METRIC
 
     def test_z_only_rapid_suppressed(self):
         """A G0 with only Z parameter should be suppressed when Z is not in parameter_order."""

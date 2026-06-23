@@ -727,7 +727,7 @@ class Machine:
         """Get output units as enum for G-code generation"""
         return (
             MachineUnits.METRIC
-            if self.output.output_units == OutputUnits.METRIC
+            if self.output.units == OutputUnits.METRIC
             else MachineUnits.IMPERIAL
         )
 
@@ -736,7 +736,7 @@ class Machine:
         """Get G-code output units as enum for post-processor"""
         return (
             MachineUnits.METRIC
-            if self.output.output_units == OutputUnits.METRIC
+            if self.output.units == OutputUnits.METRIC
             else MachineUnits.IMPERIAL
         )
 
@@ -748,7 +748,7 @@ class Machine:
     @property
     def output_unit_format(self) -> str:
         """Get G-code output unit format string (mm or in)"""
-        return "mm" if self.output.output_units == OutputUnits.METRIC else "in"
+        return "mm" if self.output.units == OutputUnits.METRIC else "in"
 
     @property
     def unit_speed_format(self) -> str:
@@ -758,7 +758,7 @@ class Machine:
     @property
     def output_unit_speed_format(self) -> str:
         """Get G-code output unit speed format string (mm/min or in/min)"""
-        return "mm/min" if self.output.output_units == OutputUnits.METRIC else "in/min"
+        return "mm/min" if self.output.units == OutputUnits.METRIC else "in/min"
 
     @property
     def machine_type(self) -> str:

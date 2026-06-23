@@ -213,7 +213,7 @@ class Linuxcnc(PostProcessor):
 
                 # Get unit conversion function
                 def get_value(val):
-                    if self.values["OUTPUT_UNITS"] == OutputUnits.IMPERIAL:
+                    if self.values.get("OUTPUT_UNITS", OutputUnits.METRIC) == OutputUnits.IMPERIAL:
                         return val / 25.4
                     return val
 

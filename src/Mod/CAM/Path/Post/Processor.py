@@ -226,7 +226,11 @@ class PostProcessorFactory:
         paths.extend(sys.path)
 
         module_name = f"{postname}_post"
-        class_name = postname.title()
+        # Modern posts use CamelCase class names (e.g. "generic_plasma" -> "GenericPlasma").
+        # Keep the legacy str.title() form ("Generic_Plasma") as a fallback for backward
+        # compatibility. The actually-present name is resolved per module below.
+        class_name = "".join(part.capitalize() for part in postname.split("_"))
+        legacy_class_name = postname.title()
         Path.Log.debug(f"PostProcessorFactory.get_post_processor() - postname: {postname}")
         Path.Log.debug(f"PostProcessorFactory.get_post_processor() - module_name: {module_name}")
         Path.Log.debug(f"PostProcessorFactory.get_post_processor() - class_name: {class_name}")
@@ -246,26 +250,28 @@ class PostProcessorFactory:
                     Path.Log.debug(f"Failed to load {module_path}: {e}")
                     continue
 
+                # Prefer the CamelCase name; fall back to the legacy title() form.
+                resolved_name = class_name if hasattr(module, class_name) else legacy_class_name
                 try:
-                    PostClass = getattr(module, class_name)
-                    Path.Log.debug(f"Found class {class_name} in module {module_name}")
+                    PostClass = getattr(module, resolved_name)
+                    Path.Log.debug(f"Found class {resolved_name} in module {module_name}")
                     return PostClass(job)
                 except AttributeError as e:
-                    if f"has no attribute '{class_name}'" in str(e):
+                    if f"has no attribute '{resolved_name}'" in str(e):
                         # Return an instance of WrapperPost if no valid class is found
                         Path.Log.debug(f"Post processor {postname} is a script")
                         return WrapperPost(job, module_path, module_name)
                     raise e
                 except Exception as e:
                     # Log any other exception during instantiation
-                    Path.Log.debug(f"Error instantiating {class_name}: {e}")
+                    Path.Log.debug(f"Error instantiating {resolved_name}: {e}")
                     # If job is None (filtering context), try to return the class itself
                     # so the machine editor can check its schema methods
                     if job is None:
                         try:
-                            PostClass = getattr(module, class_name)
+                            PostClass = getattr(module, resolved_name)
                             Path.Log.debug(
-                                f"Returning uninstantiated class {class_name} for schema inspection"
+                                f"Returning uninstantiated class {resolved_name} for schema inspection"
                             )
                             # Return a mock instance that can be used for schema inspection
                             return PostClass.__new__(PostClass)
@@ -1448,9 +1454,10 @@ class PostProcessor:
     def _collect_unit_command(self) -> list:
         """Return G20/G21 unit command based on output_units setting."""
 
-        if self.values["OUTPUT_UNITS"] == OutputUnits.METRIC:
+        output_units = self.values.get("OUTPUT_UNITS", OutputUnits.METRIC)
+        if output_units == OutputUnits.METRIC:
             return ["G21"]
-        elif self.values["OUTPUT_UNITS"] == OutputUnits.IMPERIAL:
+        elif output_units == OutputUnits.IMPERIAL:
             return ["G20"]
         else:
             return []
@@ -2311,7 +2318,9 @@ class PostProcessor:
 
         def _convert_axis_param(value):
             # Apply unit conversion based on machine units setting
-            is_imperial = self.values["OUTPUT_UNITS"] == OutputUnits.IMPERIAL
+            is_imperial = (
+                self.values.get("OUTPUT_UNITS", OutputUnits.METRIC) == OutputUnits.IMPERIAL
+            )
 
             if is_imperial:
                 converted_value = value / 25.4  # Convert mm to inches

@@ -45,9 +45,22 @@ class TestCAMSanity(PathTestBase):
 
     def setUp(self):
         self.temp_file = tempfile.NamedTemporaryFile()
+        # Guard against a postprocessor or native component closing stdout (fd 1) during these
+        # tests. If fd 1 is left closed, the unittest runner dies on stream.flush() with
+        # "[Errno 9] Bad file descriptor" and aborts the entire test run. Snapshot fd 1 here and
+        # restore it in tearDown so a misbehaving component cannot poison the rest of the suite.
+        try:
+            self._saved_fd1 = os.dup(1)
+        except OSError:
+            self._saved_fd1 = None
 
     def tearDown(self):
-        pass
+        if getattr(self, "_saved_fd1", None) is not None:
+            try:
+                os.dup2(self._saved_fd1, 1)
+            finally:
+                os.close(self._saved_fd1)
+                self._saved_fd1 = None
 
     def test00(self):
         """Test no output location"""
@@ -754,7 +767,6 @@ class TestCAMSanity(PathTestBase):
             self.assertEqual(len(postprocessor_critical), 1)  # Only the WARNING
             self.assertEqual(postprocessor_critical[0]["squawkType"], "WARNING")
 
-    @unittest.expectedFailure  # FIXME: too general
     def test321_postprocessor_sanity_checks_error_handling(self):
         """Postprocessor sanity checks: graceful handling of exceptions.
 
