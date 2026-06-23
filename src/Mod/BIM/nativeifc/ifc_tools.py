@@ -1810,7 +1810,11 @@ def recompute(children):
     doc = None
     for c in children:
         if c:
-            c.touch()
+            try:
+                c.touch()
+            except (ReferenceError, RuntimeError):
+                # The object was deleted before this deferred recompute fired
+                continue
             doc = c.Document
     if doc:
         doc.recompute()

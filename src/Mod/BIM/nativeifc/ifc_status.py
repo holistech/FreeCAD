@@ -252,6 +252,11 @@ def on_open():
 def on_activate():
     """What happens when activating a document"""
 
+    if not FreeCAD.GuiUp:
+        # nothing to do without a GUI (e.g. console/test mode); the menu and
+        # status widget manipulation below all require the main window.
+        return
+
     from PySide import QtGui  # lazy import
 
     # always reset the menu to normal first
@@ -278,6 +283,9 @@ def on_new():
 
 def set_menu(locked=False):
     """Sets the File menu items"""
+
+    if not FreeCAD.GuiUp:
+        return
 
     from PySide import QtGui  # lazy loading
 
