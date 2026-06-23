@@ -14,15 +14,9 @@ if(BUILD_GUI)
     list (APPEND Inspection_Scripts InitGui.py)
 endif(BUILD_GUI)
 
-add_custom_target(InspectionScripts ALL
-    SOURCES ${Inspection_Scripts}
-)
-
-fc_target_copy_resource(InspectionScripts
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_BINARY_DIR}/Mod/Inspection
-    ${Inspection_Scripts}
-)
+# Note: the build-tree copy of these scripts is handled by App/CMakeLists.txt
+# via fc_target_copy_resource_flat (same mechanism that copies Init.py); a
+# second copy rule here would clash with it ("multiple rules generate ...").
 
 INSTALL(
     FILES
